@@ -64,15 +64,14 @@ class MSKEnv:
                 joint_limit_ranges[limit_id][1] = joint_limit.upper
 
         # Contact model (Hunt-Crossley or MuJoCo)
-        if env_config.use_hunt_crossley:
-            msk_warp.use_hunt_crossley_contact(self.m)
-        else:
-            msk_warp.use_mujoco_contact(self.m)
+        msk_warp.set_contact_type(self.m, env_config.contact_type)
 
         # Joint limit model (Exponential or MuJoCo)
-        if env_config.use_exponential_limit:
+        msk_warp.set_limit_type(self.m, env_config.limit_type)
+
+        # Load exponential-spring force curve parameters
+        if env_config.limit_type == msk_warp.LimitType.EXPONENTIAL:
             msk_warp.use_exponential_limit(self.m)
-            # Load exponential-spring force curve parameters
             exp_limit_forces = msk_warp.exp_limit_forces(self.m)
             exp_limit_shapes = msk_warp.exp_limit_shapes(self.m)
             limit_curves_path = os.path.join(self.curr_path, env_config.limit_force_curves_path)
@@ -83,17 +82,18 @@ class MSKEnv:
                 exp_limit_forces[limit_id][1] = limit_curve.limit_force[1]
                 exp_limit_shapes[limit_id][0] = limit_curve.shape_param[0]
                 exp_limit_shapes[limit_id][1] = limit_curve.shape_param[1]
-        else:
-            msk_warp.use_mujoco_limit(self.m)
 
         # MuJoCo-parameters
         msk_warp.set_solref(self.m, env_config.solref)
 
-        # Use Newton solver for GPU
+        # Newton solver faster for GPU, CG for CPU
         if self.device.type == "cuda":
-            msk_warp.use_newton_solver(self.m)
+            msk_warp.set_solver_type(self.m, msk_warp.SolverType.NEWTON)
         else:
-            msk_warp.use_cg_solver(self.m)
+            msk_warp.set_solver_type(self.m, msk_warp.SolverType.CG)
+
+        # Integrator type
+        msk_warp.set_integrator_type(self.m, env_config.integrator)
 
         msk_warp.reinitialize_model(self.m, self.d)
 

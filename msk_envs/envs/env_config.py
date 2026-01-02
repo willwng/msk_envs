@@ -1,4 +1,5 @@
 import json
+import msk_warp
 from dataclasses import dataclass
 
 from .env_variants import DerivedEnv
@@ -36,14 +37,18 @@ class EnvConfig:
     """ Joint limits file path (YAML). NOTE: this overrides limits defined in the model file """
 
     # Constraint properties
-    use_hunt_crossley: bool = True
-    """ Whether to use Hunt-Crossley contact model (if not, then MuJoCo contact) """
-    use_exponential_limit: bool = False
-    """ Whether to use Exponential Spring limit model (if not, then MuJoCo joint limit) """
+    contact_type: msk_warp.ContactType = msk_warp.ContactType.HUNT_CROSSLEY
+    """ Contact model type (HUNT_CROSSLEY, MUJOCO) """
+    limit_type: msk_warp.LimitType = msk_warp.LimitType.MUJOCO
+    """ Joint limit model type (MUJOCO, EXPONENTIAL) """
     limit_force_curves_path: str = "../msk_models/limit_force_curves.yaml"
     """ Exponential limit force curves file path (if using Exponential limits) """
     solref: tuple[float, float] = (0.005, 1.0)
     """ MuJoCo limit/contact parameters (if using MuJoCo limits/contacts) """
+
+    # Integrator properties
+    integrator: msk_warp.IntegratorType = msk_warp.IntegratorType.RK4_FIXED
+    """ Integrator type (EULER_FIXED, RK4_FIXED) """
 
     # Muscle properties
     muscle_multiplier: float = 2.0
