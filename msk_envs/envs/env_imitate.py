@@ -1,12 +1,11 @@
 import torch
 import os
-import msk_warp
+import math
 
 from .env_base import MSKEnv
 from .env_config import EnvConfig
-from msk_envs.utils.quat import rotate_vec, quat_diff_angle, quat_diff, quat_to_angle_axis, quat_conjugate
+from msk_envs.utils.quat import rotate_vec, quat_diff_angle, quat_diff, quat_to_angle_axis, quat_conjugate, quat_mul
 from msk_envs.utils.parse_mot import parse_mot
-from msk_envs.utils.pose import get_base_name
 from msk_envs.utils.reward_lib import joint_angle_track_reward, body_pos_track_reward, body_rot_track_reward, update_dict
 
 
@@ -67,6 +66,10 @@ class ImitateEnv(MSKEnv):
         self.curr_target_br = torch.zeros_like(self.body_rotations)
 
         self._set_curr_target_frame()
+
+        self.all_but_root_joint_ids = range(7, self.joint_positions.shape[1])
+        self.all_but_root_body_ids = list(range(1, self.body_positions.shape[1]))
+        self.all_but_root_body_ids.remove(self.root_id)
 
         self.imitation_weights = env_config.imitation_weights
         self.extra_rewarded_joints = env_config.extra_rewarded_joints
@@ -142,41 +145,59 @@ class ImitateEnv(MSKEnv):
             self.curr_target_bp.view(self.num_worlds, -1),
             # self.curr_target_br.view(self.num_worlds, -1),
         ], dim=1)
+        # do this for all obs components
+        assert not torch.isnan(self.muscle_activations).any(), "NaN in muscle activations!"
+        assert not torch.isnan(self.muscle_fiber_lengths).any(), "NaN in muscle fiber lengths!"
+        assert not torch.isnan(self.muscle_fiber_velocities).any(), "NaN in muscle fiber velocities!"
+        assert not torch.isnan(self.actuator_activations).any(), "NaN in actuator activations!"
+        assert not torch.isnan(self.joint_positions).any(), "NaN in joint positions!"
+        assert not torch.isnan(self.joint_velocities).any(), "NaN in joint velocities!"
+        assert not torch.isnan(rel_body_positions).any(), "NaN in relative body positions!"
+        assert not torch.isnan(self.body_rotations).any(), "NaN in body rotations!"
+        assert not torch.isnan(self.body_velocities).any(), "NaN in body velocities!"
+
         return obs.detach().clone()
 
     def _compute_raw_reward_dict(self):
         self._set_curr_target_frame()
         self.reward_dict = {}
 
-        # Tracking reward: joints (all except root)
+        # Body positions relative to root
+        root_pos, ref_root_pos = self.body_positions[:, self.root_id, :], self.curr_target_bp[:, self.root_id, :]
+        rel_body_positions = self.body_positions - root_pos.unsqueeze(1)
+        rel_ref_body_positions = self.curr_target_bp - ref_root_pos.unsqueeze(1)
+        # Body rotations relative to root
+        root_rot, ref_root_rot = self.body_rotations[:, self.root_id, :], self.curr_target_br[:, self.root_id, :]
+        rel_body_rotations = quat_mul(quat_conjugate(root_rot).unsqueeze(1), self.body_rotations)
+        rel_ref_body_rotations = quat_mul(quat_conjugate(ref_root_rot).unsqueeze(1), self.curr_target_br)
+
+        # Tracking reward: generalized joint angles (all except root joint values)
         track_angle_reward = joint_angle_track_reward(
-            self.joint_positions, self.curr_target_angles, qpos_adr=range(7, self.joint_positions.shape[1]),
+            self.joint_positions, self.curr_target_angles, qpos_adr=self.all_but_root_joint_ids,
             weight=self.imitation_weights["imitation_weight_track_joints"])
         update_dict(self.reward_dict, "rew_track_joints", track_angle_reward)
 
-        # Root position
-        rew_track_root_pos = joint_angle_track_reward(
-            self.joint_positions, self.curr_target_angles, qpos_adr=range(3),
+        # Global root position
+        rew_track_root_pos = body_pos_track_reward(
+            self.body_positions, self.curr_target_bp, self.root_id,
             weight=self.imitation_weights["imitation_weight_track_root_pos"])
         update_dict(self.reward_dict, "rew_track_root_pos", rew_track_root_pos)
 
-        # Root quaternion, use angle difference
-        rew_track_root_rot = joint_angle_track_reward(
-            self.joint_positions, self.curr_target_angles, qpos_adr=range(3,7),
+        # Global root rotation
+        rew_track_root_rot = body_rot_track_reward(
+            self.body_rotations, self.curr_target_br, self.root_id,
             weight=self.imitation_weights["imitation_weight_track_root_rot"])
         update_dict(self.reward_dict, "rew_track_root_rot", rew_track_root_rot)
 
-
-        # # Global body positions
+        # Relative body positions
         rew_track_body_pos = body_pos_track_reward(
-            self.body_positions, self.curr_target_bp, range(1, self.body_positions.shape[1]),
+            rel_body_positions, rel_ref_body_positions, self.all_but_root_body_ids,
             weight=self.imitation_weights["imitation_weight_track_body_pos"])
         update_dict(self.reward_dict, "rew_track_body_pos", rew_track_body_pos)
 
-
-        # Global body rotations
+        # Relative body rotations
         rew_track_body_rot = body_rot_track_reward(
-            self.body_rotations, self.curr_target_br, range(1, self.body_rotations.shape[1]),
+            rel_body_rotations, rel_ref_body_rotations, self.all_but_root_body_ids,
             weight=self.imitation_weights["imitation_weight_track_body_rot"])
         update_dict(self.reward_dict, "rew_track_body_rot", rew_track_body_rot)
 
@@ -199,10 +220,10 @@ class ImitateEnv(MSKEnv):
             for body in self.extra_rewarded_joints:
                 body_id = self.body_id_lookup[body]
                 track_pos_reward = body_pos_track_reward(
-                    self.body_positions, self.curr_target_bp, body_id,
+                    rel_body_positions, rel_ref_body_positions, body_id,
                     weight=self.imitation_weights["imitation_weight_track_body_pos"])
                 track_rot_reward = body_rot_track_reward(
-                    self.body_rotations, self.curr_target_br, body_id,
+                    rel_body_rotations, rel_ref_body_rotations, body_id,
                     weight=self.imitation_weights["imitation_weight_track_body_rot"])
                 extra_rewarded_joints_reward += track_pos_reward + track_rot_reward
             update_dict(self.reward_dict, "rew_extra_rewarded_joints", extra_rewarded_joints_reward)
@@ -213,13 +234,13 @@ class ImitateEnv(MSKEnv):
         # Root position difference too high
         curr_root_pos = self.body_positions[:, self.root_id]
         target_root_pos = self.curr_target_bp[:, self.root_id]
-        root_diff_high = ((curr_root_pos - target_root_pos).norm(dim=1) > 0.15)
+        root_diff_high = ((curr_root_pos - target_root_pos).abs().max(dim=1).values > 0.5)
 
         # Root rotation difference too high
         curr_root_rot = self.body_rotations[:, self.root_id]
         target_root_rot = self.curr_target_br[:, self.root_id]
         root_rot_diff_angle = quat_diff_angle(curr_root_rot, target_root_rot)
-        root_rot_diff_high = (root_rot_diff_angle > 0.5)
+        root_rot_diff_high = (root_rot_diff_angle > math.radians(30.0))
 
         terminated = (root_diff_high | root_rot_diff_high).float()
         return terminated.detach()
