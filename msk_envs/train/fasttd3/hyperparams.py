@@ -59,7 +59,7 @@ class BaseArgs:
     """ Exploration hyperparameters """
     std_min: float = 0.001  # minimum scale of exploration noise
     std_max: float = 0.4  # maximum scale of exploration noise
-    use_gsde: bool = True  # whether to use generalized state-dependent exploration (gSDE)
+    use_gsde: bool = False  # whether to use generalized state-dependent exploration (gSDE)
     gsde_steps: int = 10  # number of steps to sample new noise for gSDE
 
     """ Q/Value function hyperparameters
@@ -173,17 +173,17 @@ class VerticalConfig(BaseArgs):
 class ImitateConfig(BaseArgs):
     """Imitate environment specific reward scales"""
     lambda_track_joints: float = 1.0
-    lambda_track_root_pos: float = 0.0
-    lambda_track_root_rot: float = 0.0
+    lambda_track_root_pos: float = 1.0
+    lambda_track_root_rot: float = 1.0
     lambda_track_body_pos: float = 1.0
     lambda_track_body_rot: float = 1.0
     
     """Imitation reward weights"""
-    imitation_weight_track_joints: float = 3.
-    imitation_weight_track_root_pos: float = 10.0
+    imitation_weight_track_joints: float = 10.0
+    imitation_weight_track_root_pos: float = 100.0
     imitation_weight_track_root_rot: float = 10.0
-    imitation_weight_track_body_pos: float = 30.0
-    imitation_weight_track_body_rot: float = 3.0
+    imitation_weight_track_body_pos: float = 100.0
+    imitation_weight_track_body_rot: float = 10.0
 
     extra_rewarded_joints: str = ""  # comma-separated list of joints to reward, default is empty
     lambda_extra_rewarded_joints: float = 0.  # This feature is disabled by default
