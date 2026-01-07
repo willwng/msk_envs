@@ -54,7 +54,7 @@ def joint_angle_track_reward(joint_positions, target_joint_positions, qpos_adr, 
 def body_pos_track_reward(body_positions, target_body_positions, body_id, weight):
     """Imitation reward for body position tracking"""
     # If body_id can be either a range or an integer
-    if isinstance(body_id, range):
+    if isinstance(body_id, range) or isinstance(body_id, list):
         _range = body_id
     else:
         _range = range(body_id, body_id + 1)
@@ -67,7 +67,7 @@ def body_pos_track_reward(body_positions, target_body_positions, body_id, weight
 
 def body_rot_track_reward(body_rotations, target_body_rotations, body_id, weight):
     # If body_id can be either a range or an integer
-    if isinstance(body_id, range):
+    if isinstance(body_id, range) or isinstance(body_id, list):
         _range = body_id
     else:
         _range = range(body_id, body_id + 1)
