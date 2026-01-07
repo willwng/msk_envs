@@ -10,9 +10,9 @@ class EnvConfig:
     env_variant: DerivedEnv = DerivedEnv.SPRINT
     """ Environment type """
 
-    delta_t: float = 1.0 / 720.0
+    delta_t: float = 1.0 / 500.0
     """ Control/policy step size """
-    delta_t_sim: float = 1.0 / 14400.0
+    delta_t_sim: float = 1.0 / 10000.0
     """ Simulator/physics step size """
 
     max_episode_duration: float = 12.0
@@ -23,7 +23,7 @@ class EnvConfig:
     """ OpenSim model file path """
     joint_damping: float = 0.1
     """ Joint damping applied to all joints """
-    joint_armature: float = 0.0001
+    joint_armature: float = 0.001
     """ Armature added to all joints (improves stability) """
     torso_damping: float = 1.0
     """ Damping specifically for torso joint """
@@ -35,15 +35,17 @@ class EnvConfig:
     """ Whether to use joint limits defined in the model file """
     joint_limits_path: str = "../msk_models/joint_limits_sprinting.yaml"
     """ Joint limits file path (YAML). NOTE: this overrides limits defined in the model file """
+    enable_drag: bool = True
+    """ Whether to enable drag forces """
 
     # Constraint properties
     contact_type: msk_warp.ContactType = msk_warp.ContactType.HUNT_CROSSLEY
-    """ Contact model type (HUNT_CROSSLEY, MUJOCO) """
-    limit_type: msk_warp.LimitType = msk_warp.LimitType.MUJOCO
+    """ Contact model type (HUNT_CROSSLEY, HUNT_CROSSLEY_SMOOTH, MUJOCO) """
+    limit_type: msk_warp.LimitType = msk_warp.LimitType.EXPONENTIAL
     """ Joint limit model type (MUJOCO, EXPONENTIAL) """
     limit_force_curves_path: str = "../msk_models/limit_force_curves.yaml"
     """ Exponential limit force curves file path (if using Exponential limits) """
-    solref: tuple[float, float] = (0.005, 1.0)
+    solref: tuple[float, float] = (0.02, 1.0)
     """ MuJoCo limit/contact parameters (if using MuJoCo limits/contacts) """
 
     # Integrator properties
@@ -61,7 +63,7 @@ class EnvConfig:
     """ Maximum muscle activation """
     muscle_v_max: float = 12.0
     """ Maximum contraction velocity (in optimal fiber lengths per second) """
-    muscle_dynamics_substeps: int = 10
+    muscle_dynamics_substeps: int = 0
     """ Number of substeps for muscle dynamics integration (can improve stability) """
     use_function_based_path: bool = True
     """ Whether to use function-based path (or geometry path)"""
