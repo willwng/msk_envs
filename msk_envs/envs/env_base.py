@@ -95,6 +95,9 @@ class MSKEnv:
         # Integrator type
         msk_warp.set_integrator_type(self.m, env_config.integrator)
 
+        # Toggle drag forces
+        msk_warp.set_drag_enabled(self.m, env_config.enable_drag)
+
         msk_warp.reinitialize_model(self.m, self.d)
 
     def _setup_cuda_graphs(self):
