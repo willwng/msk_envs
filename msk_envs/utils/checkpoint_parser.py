@@ -3,6 +3,7 @@ import os
 import torch
 
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -116,30 +117,25 @@ class KineticData:
 class NamedValue:
     name: str
     value: float
+    reference: Optional[float] = None
+    limits: Optional[tuple[float, float]] = None
 
     def to_dict(self):
-        return {
+        ret = {
             "name": self.name,
             "value": self.value,
         }
+        if self.reference is not None:
+            ret["reference"] = self.reference
+        if self.limits is not None:
+            ret["limits"] = list(self.limits)
+        return ret
 
     def has_reference(self) -> bool:
-        return False
+        return self.reference is not None
 
-
-@dataclass
-class NamedValueWithReference(NamedValue):
-    reference: float
-
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "value": self.value,
-            "reference": self.reference,
-        }
-
-    def has_reference(self) -> bool:
-        return True
+    def has_limits(self) -> bool:
+        return self.limits is not None
 
 
 @dataclass
@@ -147,7 +143,7 @@ class FrameData:
     time: float
     visuals: list[VisualData]
     colliders: list[ColliderData]
-    joint_angles: list[NamedValue | NamedValueWithReference]
+    joint_angles: list[NamedValue]
     joint_velocities: list[NamedValue]
     joint_moments: list[NamedValue]
     muscles: list[MuscleData]
@@ -297,6 +293,11 @@ def parse_kinetic_data(
     return kinetic_data
 
 
+def find_index_1d(tensor, x):
+    idx = torch.where(tensor == x)[0]
+    return idx[0].item() if idx.numel() > 0 else None
+
+
 def parse_joint_angles(
         m: msk_warp.types.Model,
         d: msk_warp.types.Data,
@@ -305,20 +306,26 @@ def parse_joint_angles(
         ref_joint_angles: torch.Tensor | None
 ) -> list[NamedValue]:
     joint_angles = msk_warp.joint_positions(d)
+    joint_limit_ranges = msk_warp.joint_limit_ranges(m)
+    joint_limit_qadr = list(msk_warp.joint_limit_qadr(m))
     angles = []
 
     for i in range(msk_warp.get_num_qpos(m)):
-        if ref_joint_angles is None:
-            angle = NamedValue(
-                name=qpos_idx_to_name[i],
-                value=float(joint_angles[world_id][i].item()),
+        reference = None if ref_joint_angles is None else float(ref_joint_angles[world_id][i].item())
+        limits = None
+        limit_id = find_index_1d(torch.tensor(joint_limit_qadr), i)
+        if limit_id is not None:
+            limits = (
+                float(joint_limit_ranges[limit_id, 0]),
+                float(joint_limit_ranges[limit_id, 1]),
             )
-        else:
-            angle = NamedValueWithReference(
-                name=qpos_idx_to_name[i],
-                value=float(joint_angles[world_id][i].item()),
-                reference=float(ref_joint_angles[world_id][i].item()),
-            )
+
+        angle = NamedValue(
+            name=qpos_idx_to_name[i],
+            value=float(joint_angles[world_id][i].item()),
+            reference=reference,
+            limits=limits,
+        )
         angles.append(angle)
     return angles
 

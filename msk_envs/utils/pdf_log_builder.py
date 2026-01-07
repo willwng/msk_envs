@@ -17,18 +17,15 @@ def create_generic_plot(
         enforced_range: tuple[float, float] = None,
         sublabels: list[str] = None,
         alphas: list[float] = None,
-        subset_ind: list[list[int]] = None,
-        add_zero_line: bool = True,
+        horizontal_lines: list[list[float]] = None,
 ):
-    num_muscles = plot_data.shape[1]
-    num_muscles_per_fig = 1
     n_vertical, n_horizontal = 3, 1
+    n_plots = plot_data.shape[1]
     figs_per_page = n_vertical * n_horizontal
-    n_figs = (num_muscles + num_muscles_per_fig - 1) // num_muscles_per_fig
-    num_pages = (n_figs + figs_per_page - 1) // figs_per_page
+    num_pages = (n_plots + figs_per_page - 1) // figs_per_page
 
-    for p in range(num_pages):
-        muscles_plot = SequencePlot(
+    for idx_page in range(num_pages):
+        seq_plot = SequencePlot(
             PlotConfig(
                 num_vertical=n_vertical,
                 num_horizontal=n_horizontal,
@@ -45,53 +42,46 @@ def create_generic_plot(
             )
         )
 
-        for f in range(figs_per_page):
-            start_muscle = (p * figs_per_page + f) * num_muscles_per_fig
-            end_muscle = min(start_muscle + num_muscles_per_fig,
-                             num_muscles)
-            if start_muscle >= num_muscles:
+        # Add plots for this page
+        for idx_fig in range(figs_per_page):
+            # Retrieve data subset for this figure
+            start_idx = (idx_page * figs_per_page + idx_fig)
+            end_idx = start_idx + 1
+            if start_idx >= n_plots:
                 continue
-            muscle_subset = plot_data[:, start_muscle:end_muscle]
-            muscle_subset_names = names[start_muscle:end_muscle]
-            title = ", ".join(muscle_subset_names)
-            for m in range(muscle_subset.shape[1]):
-                muscle_name = muscle_subset_names[m]
-                muscle_sequence = muscle_subset[:, m]
+            data_subset = plot_data[:, start_idx:end_idx]
+            data_subset_names = names[start_idx:end_idx]
+            title = ", ".join(data_subset_names)
 
-                # Add a zero line if needed
-                if add_zero_line:
-                    muscles_plot.add_hline(f, 0.0)
+            # Add each entry in the subset
+            for i in range(data_subset.shape[1]):
+                entry_name = data_subset_names[i]
+                data_sequence = data_subset[:, i]
 
-                # simple 1d plot
-                if len(muscle_sequence.shape) == 1:
-                    muscles_plot.add(f, muscle_sequence, label=muscle_name,
+                if len(data_sequence.shape) == 1:  # simple 1d plot
+                    seq_plot.add(idx_fig, data_sequence, label=entry_name, title=title)
+                else:  # multiple values per entry (e.g., value and reference)
+                    assert sublabels is not None
+                    label = sublabels
+
+                    for part in range(data_subset.shape[-1]):
+                        alpha = 1.0 if alphas is None else alphas[part]
+                        seq_plot.add(idx_fig, data_subset[..., part],
+                                     label=label[part],
+                                     alpha=alpha,
                                      title=title)
 
-                # multiple plots
-                else:
-                    assert sublabels is not None
-                    # Check if we want a subset of the plots for this muscle
-                    if subset_ind is not None:
-                        muscle_idx = start_muscle + m
-                        muscle_subset = muscle_subset[
-                            :, m, subset_ind[muscle_idx]]
-                        label = [sublabels[i] for i in subset_ind[muscle_idx]]
-                    else:
-                        label = sublabels
+                # Add horizontal lines if specified. can be used for zero lines or joint limits
+                idx_entry = start_idx + i
+                if horizontal_lines and horizontal_lines[idx_entry] is not None:
+                    for hline in horizontal_lines[idx_entry]:
+                        seq_plot.add_hline(idx_fig, hline)
 
-                    for part in range(muscle_subset.shape[-1]):
-                        alpha = 1.0 if alphas is None else alphas[part]
-                        muscles_plot.add(f, muscle_subset[..., part],
-                                         label=label[part],
-                                         alpha=alpha,
-                                         title=title)
+            # Enforce y range if specified
+            if enforced_range is not None:
+                seq_plot.enforce_y_range(idx_fig, enforced_range[0], enforced_range[1])
 
-                if enforced_range is not None:
-                    muscles_plot.enforce_y_range(f,
-                                                 enforced_range[0],
-                                                 enforced_range[1])
-
-        muscles_plot.finish(pdf)
+        seq_plot.finish(pdf)
 
 
 def create_interval_plots(interval_duration: float, times: np.ndarray, fn):
@@ -252,6 +242,7 @@ def create_pdf_output(frame_data: list[FrameData], out_file: str):
         has_reference = frame_data[0].joint_angles[0].has_reference()
         joint_names = [j.name for j in frame_data[0].joint_angles]
         joint_angles = []
+        joint_angle_limits = [j.limits for j in frame_data[0].joint_angles]
         for frame in frame_data:
             if has_reference:
                 joint_angles.append([(j.value, j.reference) for j in frame.joint_angles])
@@ -270,8 +261,8 @@ def create_pdf_output(frame_data: list[FrameData], out_file: str):
             sublabels = ["Value", "Reference"] if has_reference else None
             alpha = [1.0, 0.5] if has_reference else None
             create_generic_plot(joint_names, time_selected, frame_ind_selected, joint_angles[time_mask, :],
-                                title, "Value (rad)", ".3f", pdf, add_zero_line=False,
-                                sublabels=sublabels, alphas=alpha)
+                                title, "Value (m or rad)", ".3f", pdf, sublabels=sublabels, alphas=alpha,
+                                horizontal_lines=joint_angle_limits)
 
         # Joint angles plot for entire duration, and 1 second intervals
         create_joint_angles_plot()
@@ -293,7 +284,7 @@ def create_pdf_output(frame_data: list[FrameData], out_file: str):
             frame_ind_selected = frame_ind[time_mask]
             title = f"Joint Moments ({time_start:.1f}s to {time_end:.1f}s)"
             create_generic_plot(joint_names, time_selected, frame_ind_selected, joint_moments[time_mask, :],
-                                title, "Value (N m)", ".3f", pdf, add_zero_line=False)
+                                title, "Value (N m)", ".3f", pdf)
 
         # Joint moments plot for entire duration, and 1 second intervals
         create_joint_moments_plot()
@@ -309,14 +300,15 @@ def create_pdf_output(frame_data: list[FrameData], out_file: str):
             muscle_ftl.append([(m.fiber_length, m.tendon_length) for m in frame.muscles])
 
         muscle_ftl = np.array(muscle_ftl)
+        zero_lines = [[0.0, 0.0]] * len(muscle_names)
         create_generic_plot(muscle_names, times, frame_ind, np.array(muscle_ae),
                             "Muscle Activations/Excitations", "Activation/Excitation", ".2f",
                             pdf, enforced_range=(0.0, 1.0),
                             sublabels=["Activation", "Excitation"],
-                            alphas=[1.0, 0.5])
+                            alphas=[1.0, 0.5], horizontal_lines=zero_lines)
         create_generic_plot(muscle_names, times, frame_ind, np.array(muscle_ftl),
                             "Muscle Fiber/Tendon Length", "Length (m)", ".3f",
-                            pdf, sublabels=["Fiber", "Tendon"])
+                            pdf, sublabels=["Fiber", "Tendon"], horizontal_lines=zero_lines)
 
         # --- ACTUATOR PLOTS ---
         actuator_names = [a.name for a in frame_data[0].actuators]
@@ -328,6 +320,6 @@ def create_pdf_output(frame_data: list[FrameData], out_file: str):
                             "Actuator Activations/Excitations", "Activation/Excitation", ".2f",
                             pdf, enforced_range=(0.0, 1.0),
                             sublabels=["Activation", "Excitation"],
-                            alphas=[1.0, 0.5], add_zero_line=False)
+                            alphas=[1.0, 0.5])
 
     return
