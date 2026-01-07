@@ -24,7 +24,7 @@ class EnvConfig:
     joint_damping: float = 0.1
     """ Joint damping applied to all joints """
     joint_armature: float = 0.001
-    """ Armature added to all joints (improves stability) """
+    """ Armature added to all joints (increases inertia but improves stability) """
     torso_damping: float = 1.0
     """ Damping specifically for torso joint """
     toes_stiffness: float = 65.0
