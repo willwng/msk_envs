@@ -82,12 +82,12 @@ soleus_r: 0.00269516
 tib_post_r: 0.23598057
 flex_dig_r: 0.66438803
 flex_hal_r: 0.18055971
-tib_ant_r: 0.35700326
+tib_ant_r: 1.0
 per_brev_r: 0.01814454
 per_long_r: 0.00376280
-per_tert_r: 0.84215491
-ext_dig_r: 0.69177506
-ext_hal_r: 0.21169593
+per_tert_r: 1.0
+ext_dig_r: 1.0
+ext_hal_r: 1.0
 ercspn_r: 0.93274982
 intobl_r: 0.06607199
 extobl_r: 0.12273808
