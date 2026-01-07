@@ -21,6 +21,15 @@ class ColliderData:
             "scale": list(self.scale),
         }
 
+    @staticmethod
+    def from_dict(data: dict) -> 'ColliderData':
+        return ColliderData(
+            geom_type=data["geom_type"],
+            pos=data["pos"],
+            rot=data["rot"],
+            scale=data["scale"],
+        )
+
 
 @dataclass
 class VisualData:
@@ -44,6 +53,16 @@ class VisualData:
             "scale": list(self.scale),
             "opacity": self.opacity,
         }
+
+    @staticmethod
+    def from_dict(data: dict) -> 'VisualData':
+        return VisualData(
+            mesh_file=data["mesh_file"],
+            pos=data["pos"],
+            rot=data["rot"],
+            scale=data["scale"],
+            opacity=data.get("opacity", 1.0),
+        )
 
 
 @dataclass
@@ -79,6 +98,23 @@ class MuscleData:
             "pennation_angle": self.pennation_angle,
         }
 
+    @staticmethod
+    def from_dict(data: dict) -> 'MuscleData':
+        return MuscleData(
+            name=data["name"],
+            points=data["points"],
+            max_isometric_force=data["max_isometric_force"],
+            activation=data["activation"],
+            excitation=data["excitation"],
+            actuation=data["actuation"],
+            path_length=data["path_length"],
+            path_velocity=data["path_velocity"],
+            fiber_length=data["fiber_length"],
+            fiber_velocity=data["fiber_velocity"],
+            tendon_length=data["tendon_length"],
+            pennation_angle=data["pennation_angle"],
+        )
+
 
 @dataclass
 class ActuatorData:
@@ -96,6 +132,15 @@ class ActuatorData:
             "excitation": self.excitation,
         }
 
+    @staticmethod
+    def from_dict(data: dict) -> 'ActuatorData':
+        return ActuatorData(
+            name=data["name"],
+            optimal_force=data["optimal_force"],
+            activation=data["activation"],
+            excitation=data["excitation"],
+        )
+
 
 @dataclass
 class KineticData:
@@ -112,6 +157,15 @@ class KineticData:
             "gravity": self.gravity,
         }
 
+    @staticmethod
+    def from_dict(data: dict) -> 'KineticData':
+        return KineticData(
+            com=tuple(data["com"]),
+            grf=tuple(data["grf"]),
+            total_mass=data["total_mass"],
+            gravity=data["gravity"],
+        )
+
 
 @dataclass
 class NamedValue:
@@ -119,6 +173,12 @@ class NamedValue:
     value: float
     reference: Optional[float] = None
     limits: Optional[tuple[float, float]] = None
+
+    def has_reference(self) -> bool:
+        return self.reference is not None
+
+    def has_limits(self) -> bool:
+        return self.limits is not None
 
     def to_dict(self):
         ret = {
@@ -131,11 +191,14 @@ class NamedValue:
             ret["limits"] = list(self.limits)
         return ret
 
-    def has_reference(self) -> bool:
-        return self.reference is not None
-
-    def has_limits(self) -> bool:
-        return self.limits is not None
+    @staticmethod
+    def from_dict(data: dict) -> 'NamedValue':
+        return NamedValue(
+            name=data["name"],
+            value=data["value"],
+            reference=data.get("reference"),
+            limits=tuple(data["limits"]) if "limits" in data else None,
+        )
 
 
 @dataclass
@@ -164,6 +227,21 @@ class FrameData:
             "kinetic_data": self.kinetic_data.to_dict(),
             "reward_data": self.reward_data,
         }
+
+    @staticmethod
+    def from_dict(data: dict) -> 'FrameData':
+        return FrameData(
+            time=data["time"],
+            visuals=[VisualData.from_dict(obj) for obj in data["visuals"]],
+            colliders=[ColliderData.from_dict(obj) for obj in data["colliders"]],
+            joint_angles=[NamedValue.from_dict(angle) for angle in data["joint_angles"]],
+            joint_velocities=[NamedValue.from_dict(vel) for vel in data["joint_velocities"]],
+            joint_moments=[NamedValue.from_dict(moment) for moment in data["joint_moments"]],
+            muscles=[MuscleData.from_dict(muscle) for muscle in data["muscles"]],
+            actuators=[ActuatorData.from_dict(actuator) for actuator in data["actuators"]],
+            kinetic_data=KineticData.from_dict(data["kinetic_data"]),
+            reward_data=data["reward_data"],
+        )
 
 
 def parse_visual_data(
@@ -287,7 +365,7 @@ def parse_kinetic_data(
     kinetic_data = KineticData(
         com=tuple(com),
         grf=tuple(grf),
-        total_mass=mass,
+        total_mass=float(mass),
         gravity=gravity,
     )
     return kinetic_data

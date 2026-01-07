@@ -1,3 +1,4 @@
+""" Provides a wrapper around an MSKEnv to log simulation data """
 from msk_envs.envs.env_base import MSKEnv
 from msk_envs.utils.checkpoint_parser import parse_frame, add_reference_visuals
 from msk_envs.utils.animation_builder import create_animation_json
@@ -65,7 +66,7 @@ class LoggedSim:
         # If we are using the ImitateEnv, add reference visuals
         add_reference, ref_joint_angles = False, None
         if hasattr(self.envs, "get_reference_visuals") and hasattr(self.envs, "get_reference_times") \
-            and hasattr(self.envs, "get_reference_joint_angles"):
+                and hasattr(self.envs, "get_reference_joint_angles"):
             ref_joint_angles = self.envs.get_reference_joint_angles()
             ref_visuals_pos, ref_visuals_rot = self.envs.get_reference_visuals()
             ref_times = self.envs.get_reference_times()
@@ -131,17 +132,13 @@ class LoggedSim:
     def get_episode_length_mean(self):
         return self.episode_length.float().mean()
 
-    def get_obs(self):
-        return self.envs._get_obs()
-
     def save_frame_data(self, out_folder: str, base_filename: str):
         """ Save the raw frame data as json files """
         os.makedirs(out_folder, exist_ok=True)
         for idx_world in self.worlds_to_save:
-            out_file = os.path.join(out_folder,
-                                    f"{base_filename}_{idx_world}.json")
+            out_file = os.path.join(out_folder, f"{base_filename}_{idx_world}.json")
             frame_data = self.frame_data[idx_world]
-            frame_data = [frame.to_data_dict() for frame in frame_data]
+            frame_data = [frame.to_dict() for frame in frame_data]
             with open(out_file, 'w') as f:
                 json.dump(frame_data, f)
             print("Saved frame data to", out_file)
@@ -150,25 +147,17 @@ class LoggedSim:
     def save_animation(self, out_folder: str, base_filename):
         """ Create the animation-ready json files """
         for idx_world in self.worlds_to_save:
-            out_file = os.path.join(out_folder,
-                                    f"{base_filename}_{idx_world}.json")
+            out_file = os.path.join(out_folder, f"{base_filename}_{idx_world}.json")
             frame_data = self.frame_data[idx_world]
             create_animation_json(frame_data, out_file)
             print("Saved animation to", out_file)
         return
 
     def save_analytics(self, out_folder: str, base_filename: str):
-        # make a pdf with the plots
+        """ Create PDF analytics files """
         for i in range(self.n_worlds_to_save):
             idx_world = self.worlds_to_save[i]
-            out_file = os.path.join(out_folder,
-                                    f"{base_filename}_{idx_world}.pdf")
+            out_file = os.path.join(out_folder, f"{base_filename}_{idx_world}.pdf")
             create_pdf_output(self.frame_data[i], out_file)
             print("Saved analytics to", out_file)
         return
-
-
-def setup_axes(axs, title, xlabel, ylabel):
-    axs.set_title(title)
-    axs.set_xlabel(xlabel)
-    axs.set_ylabel(ylabel)

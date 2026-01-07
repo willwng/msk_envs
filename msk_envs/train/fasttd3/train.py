@@ -216,9 +216,7 @@ def main():
 
         # Build logged sim wrapper
         sim = LoggedSim(eval_envs, max_episode_steps, device=device)
-        sim.reset()
-
-        eval_obs = sim.get_obs()
+        eval_obs = sim.reset()
         for i in range(max_episode_steps):
             eval_actions = policy_eval(eval_obs)
             finished, eval_obs = sim.step(eval_actions)
@@ -235,7 +233,7 @@ def main():
 
         out_folder = args.analytics_out_folder
         os.makedirs(out_folder, exist_ok=True)
-        # sim.save_frame_data(out_folder, f"frame_data_{global_step}")
+        sim.save_frame_data(out_folder, f"frame_data_{global_step}")
         sim.save_analytics(out_folder, f"analytics_{global_step}")
 
         # Restore back to training device
@@ -416,7 +414,8 @@ def main():
         obs_normalizer.load_state_dict(torch_checkpoint["obs_normalizer_state"])
         qnet.load_state_dict(torch_checkpoint["qnet_state_dict"])
         qnet_target.load_state_dict(torch_checkpoint["qnet_target_state_dict"])
-        global_step = torch_checkpoint["global_step"]
+        # global_step = torch_checkpoint["global_step"]
+        global_step = 0
     else:
         global_step = 0
 
