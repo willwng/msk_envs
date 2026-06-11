@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass
 class SwapPair:
-    """ Represents a pair of left/right dofs to swap """
+    """ Represents a pair of left/right dofs that can be swapped under symmetry """
     qpos_r: int
     qpos_l: int
     dof_r: int

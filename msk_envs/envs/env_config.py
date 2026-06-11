@@ -77,23 +77,19 @@ class EnvConfig:
     """ Function-based path data file """
     ignore_short_elastic_tendons: bool = False
     """ Ignore tendon dynamics for muscles where tendon slack length < optimal fiber length"""
-    custom_muscle_multipliers: dict[str, float] = field(default_factory=dict)
-    """ Custom muscle force multiplier (overrides muscle_multiplier) """
 
     # Starting pose (starting_pose and noise is ignored for IMITATE variant)
     starting_pose_path: str = ""
     """ Starting pose file path (YAML) """
     target_pose_path: str = ""
     """ Target pose file path for reach pose env (YAML) """
-    noise_start: bool = True
+    apply_start_noise: bool = True
     """ Whether to add noise to starting state """
     q_noise: float = 0.03
     """ std of starting joint position noise"""
     qv_noise: float = 0.1
     """ std of starting joint velocity noise"""
-    noise_root: bool = True
-    """ Whether to add noise to root position/rotation """
-    swap_lr: bool = True
+    apply_swap_lr: bool = True
     """ Whether to swap left/right sides when adding noise to starting state """
     enforce_ground_contact: bool = True
     """ Whether to enforce contact with ground at start (for free body only) """

@@ -184,7 +184,7 @@ class LoggedSim:
         # We're overriding typical env step to allow for logging
 
         # Start with the pre-step
-        self.envs.pre_step(actions)
+        self.envs.pre_sim_step(actions)
 
         # We need to report at the correct logging event times
         #  For fixed time-stepping, we assume [delta_t_sim] is small and just check after every sim step
