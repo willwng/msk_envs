@@ -77,12 +77,8 @@ class EnvConfig:
     """ Function-based path data file """
     ignore_short_elastic_tendons: bool = False
     """ Ignore tendon dynamics for muscles where tendon slack length < optimal fiber length"""
-    disable_muscle_passive_forces: bool = False
-    """ Whether to disable muscle passive forces """
     custom_muscle_multipliers: dict[str, float] = field(default_factory=dict)
     """ Custom muscle force multiplier (overrides muscle_multiplier) """
-    use_mujoco_muscles: bool = False
-    """ Use MuJoCo muscle type (fixed length tendons, no pennation) """
 
     # Starting pose (starting_pose and noise is ignored for IMITATE variant)
     starting_pose_path: str = ""
@@ -103,10 +99,6 @@ class EnvConfig:
     """ Whether to enforce contact with ground at start (for free body only) """
     motion_name: str = ""
     """ motion file name for IMITATE environments (or variants) """
-    use_prescribed_starting_activations: bool = False
-    """ Whether to use prescribed starting activations from file """
-    starting_activations_path: str = ""
-    """ Starting activations file path (YAML) """
     default_activation: float = -1.0
     """ Default activation value when prescribed activations are not used. -1.0 is random. """
 
@@ -184,7 +176,7 @@ class EnvConfigSprinter(EnvConfig):
 class EnvConfigAthlete(EnvConfig):
     model_path: str = "../msk_models/athlete/athlete.osim"
     muscle_function_path: str = "../msk_models/athlete/athlete_fn.xml"
-    contact_params_path: str = "../msk_models/athlete/contact_params/contact_params_nicos.yaml"
+    contact_params_path: str = "../msk_models/athlete/contact_params/contact_params.yaml"
     starting_pose_path: str = "../msk_models/athlete/poses/starting_pose_run.yaml"
     ignore_short_elastic_tendons: bool = True
 

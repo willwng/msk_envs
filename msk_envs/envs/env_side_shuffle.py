@@ -41,13 +41,5 @@ class SideShuffleEnv(LanesEnv):
         right_toe_x = right_toe_pos[:, FWD_IDX]
         right_toe_crossed = (right_toe_x > left_toe_x)
 
-        # Torso must be upright
-        torso_rot = self.body_rotations[:, self.head_id]
-        torso_up = rotate_vec(torso_rot, self.up_axis)
-        torso_up = torso_up / torch.norm(torso_up, dim=1, keepdim=True)
-        torso_fwd_dot_up = torch.sum(torso_up * self.up_axis, dim=1)
-        torso_upright = torso_fwd_dot_up >= self.cos_angle_threshold
-        torso_not_upright = ~torso_upright
-
-        terminated = (terminated_lanes | right_toe_crossed | torso_not_upright).bool()
+        terminated = (terminated_lanes | right_toe_crossed).bool()
         return terminated.detach()

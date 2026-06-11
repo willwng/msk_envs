@@ -19,7 +19,7 @@ class LoggedSim:
             self,
             envs: MSKEnv,
             device: torch.device,
-            delta_t_log: float = 0.01,  # 100 fps
+            delta_t_log: float = 0.01,  # default record at 100Hz
     ):
         self.envs = envs
         self.worlds_to_save = list(range(envs.num_worlds))
@@ -91,7 +91,7 @@ class LoggedSim:
         return
 
     def add_to_log(self):
-        times = self.envs.get_time()
+        times = self.envs.time
         scene_settings = self.envs.scene_settings()
 
         # If we are using the ImitateEnv, add reference visuals

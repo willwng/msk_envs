@@ -17,14 +17,8 @@ class VerticalEnv(MSKEnv):
             live_render: bool,
             cuda_graph: bool,
     ):
-        super().__init__(
-            num_envs=num_envs,
-            env_config=env_config,
-            device=device,
-            requires_visuals=requires_visuals,
-            live_render=live_render,
-            cuda_graph=cuda_graph
-        )
+        super().__init__(num_envs=num_envs, env_config=env_config, device=device, requires_visuals=requires_visuals,
+                         cuda_graph=cuda_graph)
         self.hand_r_id = self.body_id_lookup["hand_r"]
         self.hand_l_id = self.body_id_lookup["hand_l"]
 

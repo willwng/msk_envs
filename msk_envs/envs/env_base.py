@@ -1,18 +1,18 @@
-import torch
 import math
-import bolt
-import warp as wp
 import os
 
-from .env_config import EnvConfig
-from msk_envs.utils.pose import parse_starting_pose, get_swap_left_right_data
-from msk_envs.utils.muscle_props import parse_starting_activations
+import bolt
+import torch
+import warp as wp
+
+from msk_envs.envs.perturber import Perturber
 from msk_envs.utils.contact_params import parse_contact_params
+from msk_envs.utils.global_params import UP_IDX
+from msk_envs.utils.pose import parse_starting_pose, get_swap_left_right_data
+from msk_envs.utils.quat import quat_normalize
 from msk_envs.utils.scene_settings import SceneSettings
 from msk_envs.utils.transforms import get_position_from_transform, get_rotation_from_transform
-from msk_envs.utils.global_params import UP_IDX, SIDE_IDX, FWD_IDX, build_axis
-from msk_envs.utils.quat import quat_normalize
-from msk_envs.envs.perturber import Perturber
+from .env_config import EnvConfig
 
 
 class MSKEnv:
@@ -54,20 +54,6 @@ class MSKEnv:
 
     def _setup_model(self, env_config: EnvConfig) -> None:
         """ Modify model parameters here. """
-
-        upper_body_muscles = [
-            "coracobrachialis_r", "deltoideus_ant_r", "deltoideus_med_r", "deltoideus_post_r", "latissimus_sup_r",
-            "latissimus_med_r", "latissimus_inf_r", "pectoralis_major_sup_r", "pectoralis_major_med_r",
-            "pectoralis_major_inf_r", "teres_major_r", "teres_minor_r", "infraspinatus_inf_r", "infraspinatus_sup_r",
-            "subscapularis_sup_r", "subscapularis_med_r", "subscapularis_inf_r", "supraspinatus_post_r",
-            "supraspinatus_ant_r", "triceps_long_r", "biceps_long_r", "biceps_brevis_r", "coracobrachialis_l",
-            "deltoideus_ant_l", "deltoideus_med_l", "deltoideus_post_l", "latissimus_sup_l", "latissimus_med_l",
-            "latissimus_inf_l", "pectoralis_major_sup_l", "pectoralis_major_med_l", "pectoralis_major_inf_l",
-            "teres_major_l", "teres_minor_l", "infraspinatus_inf_l", "infraspinatus_sup_l", "subscapularis_sup_l",
-            "subscapularis_med_l", "subscapularis_inf_l", "supraspinatus_post_l", "supraspinatus_ant_l",
-            "triceps_long_l", "biceps_long_l", "biceps_brevis_l",
-        ]
-
         # Muscles activation and fiber dynamic
         bolt.set_activation_type(self.m, env_config.muscle_activation_dynamics)
         bolt.set_contraction_type(self.m, env_config.muscle_contraction_dynamics)
@@ -75,66 +61,36 @@ class MSKEnv:
         muscle_idx_to_name = {idx: name for name, idx in self.load_result.muscle_id_lookup.items()}
         for i, mm in enumerate(muscle_metadata):
             muscle_name = muscle_idx_to_name[i]
-
-            # Custom muscle multiplier
+            # Muscle force multiplier
             if muscle_name in env_config.custom_muscle_multipliers:
                 custom_multiplier = env_config.custom_muscle_multipliers[muscle_name]
                 mm.max_isometric_force *= custom_multiplier
             else:
                 mm.max_isometric_force *= env_config.muscle_multiplier
-
+            # Activation dynamics
             mm.activation_time_const = env_config.muscle_activation_time_const
             mm.deactivation_time_const = env_config.muscle_deactivation_time_const
             mm.activation_dynamics_smoothing = env_config.muscle_activation_dynamics_smoothing
-            mm.fiber_damping = env_config.muscle_fiber_damping
             mm.min_activation = env_config.muscle_min_activation
             mm.max_activation = env_config.muscle_max_activation
+            # Contraction dynamics
+            mm.fiber_damping = env_config.muscle_fiber_damping
             mm.active_force_width_scale = env_config.muscle_active_force_width_scale
             mm.v_max = env_config.muscle_v_max
-
             if env_config.ignore_short_elastic_tendons:
                 mm.ignore_tendon_compliance = (
                         mm.ignore_tendon_compliance or mm.tendon_slack_length < mm.optimal_fiber_length)
 
-            # "Disable" passive muscle forces for upper body
-            if muscle_name in upper_body_muscles:
-                mm.strain_at_one_norm_force = 3.0
-                mm.stiffness_at_low_force = 0.0
-
-            if env_config.disable_muscle_passive_forces:
-                mm.strain_at_one_norm_force = 3.0
-                mm.stiffness_at_low_force = 0.0
-
-            # MuJoCo type muscles
-            if env_config.use_mujoco_muscles:
-                # bolt.set_contraction_type(self.m, bolt.ContractionType.MUJOCO)
-                mm.ignore_tendon_compliance = True  # rigid tendon
-
-                # We set pennation angle to 0, so this requires updating:
-                #  the optimal fiber length
-                #  the max isometric force
-                cos_pennation = math.cos(mm.optimal_pennation_angle)
-                mm.max_isometric_force = mm.max_isometric_force * cos_pennation
-                mm.optimal_fiber_length = mm.optimal_fiber_length * cos_pennation
-                mm.optimal_pennation_angle = 0.0  # fixed pennation angle
-
-                # mm.fiber_damping = 0.0  # no fiber damping
-                # mm.min_norm_fiber_length = 0.0  # no such thing as a min/max fiber length
-                # mm.max_norm_fiber_length = 10.0
-
-        # Armature
+        # Armature/joint settings
         dof_start = 6 if self.root_free else 0
         bolt.armature(self.m)[dof_start:] = env_config.armature
-
-        bolt.set_implicit_damping(self.m, env_config.use_implicit_damping)
         bolt.set_use_linear_stop(self.m, env_config.use_linear_stop)
-
-        # Integrator type
+        # Integrator settings
+        bolt.set_implicit_damping(self.m, env_config.use_implicit_damping)
         bolt.set_integrator_accuracy(self.m, env_config.integrator_accuracy)
         bolt.set_integrator_use_inf_norm(self.m, env_config.integrator_use_inf_norm)
-        # Toggle drag forces
+        # Physics
         bolt.set_drag_enabled(self.m, env_config.enable_drag)
-
         bolt.set_gravity(self.m, env_config.gravity)
 
         bolt.reinitialize_model(self.m, self.d)
@@ -182,7 +138,6 @@ class MSKEnv:
             env_config: EnvConfig,
             device: torch.device,
             requires_visuals: bool,
-            live_render: bool,
             cuda_graph: bool,
             debug: bool = False
     ):
@@ -190,21 +145,22 @@ class MSKEnv:
         self.device = device
         self.debug = debug
 
-        # Load model
         self.curr_path = os.path.abspath(os.path.dirname(__file__))
-        self.model_path = os.path.join(self.curr_path, env_config.model_path)
-        muscle_fn_path = os.path.join(
-            self.curr_path, env_config.muscle_function_path) if env_config.use_function_based_path else None
+
+        # Load msk model
         load_result = bolt.load_model(
-            model_path=self.model_path,
+            model_path=os.path.join(self.curr_path, env_config.model_path),
             n_worlds=num_envs,
             integrator=env_config.integrator,
             requires_visuals=requires_visuals,
-            muscle_fn_path=muscle_fn_path
+            muscle_fn_path=os.path.join(
+                self.curr_path, env_config.muscle_function_path
+            ) if env_config.use_function_based_path else None
         )
         self.load_result = load_result
         self.m, self.d = load_result.model, load_result.data
         self.root_free = load_result.root_free
+        # Post-load model setup/modifications
         self._add_colliders(env_config)
         self._modify_colliders(env_config)
         self._setup_model(env_config)
@@ -218,13 +174,6 @@ class MSKEnv:
         self.actuator_id_lookup = load_result.actuator_id_lookup
         self.collider_id_lookup = load_result.collider_id_lookup
         self.visuals = load_result.mesh_load_results
-
-        # Spring stuff bla bla remove me todo
-        qpos_spring_rest = bolt.qpos_spring_rest(self.m)
-        if "shoulder_abduction_r" in self.qpos_id_lookup:
-            qpos_spring_rest[self.qpos_id_lookup["shoulder_abduction_r"]] = 0.261799
-        if "shoulder_abduction_l" in self.qpos_id_lookup:
-            qpos_spring_rest[self.qpos_id_lookup["shoulder_abduction_l"]] = 0.261799
 
         # Model properties
         self.num_qpos = bolt.get_num_qpos(self.m)
@@ -285,10 +234,8 @@ class MSKEnv:
         self.collider_positions = get_position_from_transform(bolt.get_collider_transforms(self.d))
         # self.collider_self_forces = bolt.collider_self_forces(self.d)
         self.body_self_collision_forces = bolt.body_self_collisions(self.d)
-
         # [num_envs, 3]
         self.grf = bolt.grf(self.d)
-
         # [num_envs, num_visuals, 3]
         self.visual_transforms = bolt.get_visual_transforms(self.d)
         self.visual_positions = get_position_from_transform(self.visual_transforms)
@@ -338,62 +285,25 @@ class MSKEnv:
 
         # Starting muscle activations
         self.noise_act_start = False
-        if env_config.use_prescribed_starting_activations:
-            start_activations_path = os.path.join(self.curr_path, env_config.starting_activations_path)
-            start_activations = parse_starting_activations(
-                start_activations_path, self.muscle_id_lookup, env_config.default_activation)
-            self.start_activations = torch.tensor(start_activations, device=device).unsqueeze(0).repeat(num_envs, 1)
+        if env_config.default_activation == -1.0:
+            self.start_activations = torch.rand((num_envs, self.num_muscles), device=device)
+            self.noise_act_start = True
         else:
-            if env_config.default_activation == -1.0:
-                self.start_activations = torch.rand((num_envs, self.num_muscles), device=device)
-                self.noise_act_start = True
-            else:
-                self.start_activations = torch.ones(
-                    (num_envs, self.num_muscles), device=device) * env_config.default_activation
+            self.start_activations = torch.ones(
+                (num_envs, self.num_muscles), device=device) * env_config.default_activation
 
         # Rewards storage
         self.reward_dict = {}
         self.reward_lambdas = env_config.reward_lambdas
-
-        self.render = live_render
-        if live_render:
-            self.renderer = bolt.create_renderer(
-                load_result=load_result,
-                renderer_type=bolt.RendererType.OPENGL,
-                draw_visuals=True,
-                draw_beams=True,
-                draw_body_mass=False,
-                draw_colliders=False,
-                draw_muscles=True,
-                draw_sites=False,
-            )
-            if self.renderer.viewer_type == bolt.RendererType.TILED:
-                self.renderer.setup_tiled_renderer(list(range(min(num_envs, 4))))
 
         # CUDA Graphs
         self.cuda_graph = cuda_graph
         self._setup_cuda_graphs()
 
         # Pre-compute useful body IDs and offsets
-        self.ground_id = self.lookup_body_id("ground")
-        self.root_id = self.lookup_body_id("pelvis")
-        self.head_id = self.lookup_body_id("head")
-        head_offset = torch.zeros(3, device=self.device)
-
-        # Head isn't its own body, compute offset from torso
-        if self.head_id == -1:
-            self.head_id = self.lookup_body_id("torso")
-            head_offset = torch.tensor(build_axis(axis=UP_IDX, scale=0.215), device=self.device)
-
+        self.ground_id = self.body_id_lookup["ground"]
+        self.root_id = self.body_id_lookup["pelvis"]
         self.root_pos = self.body_positions[:, self.root_id]
-        self.root_rot = self.body_rotations[:, self.root_id]
-        self.head_pos = self.body_positions[:, self.head_id]
-        self.head_rot = self.body_rotations[:, self.head_id]
-        self.head_offset = head_offset.unsqueeze(0).repeat(num_envs, 1)
-
-        # Set initial pose
-        # reset_ind = torch.ones_like(self.reset_tensor, dtype=torch.bool)
-        # self.noise_start_pose(reset_ind.ravel())
 
         # Set up random perturber
         self.perturber = Perturber(
@@ -453,16 +363,6 @@ class MSKEnv:
 
     def num_actions(self) -> int:
         return self._get_actions().shape[1]
-
-    def get_time(self) -> torch.Tensor:
-        return self.time.detach().clone()
-
-    def get_joint_passive_torques(self, include_passive_muscle: bool = True) -> torch.Tensor:
-        """ Returns the net torques from the passive elements of each joint """
-        passive_joint_torques = torch.abs(self.ufrc_spring) + torch.abs(self.ufrc_damper) + torch.abs(self.ufrc_limit)
-        if include_passive_muscle:
-            passive_joint_torques += torch.abs(self.ufrc_muscle_passive)
-        return passive_joint_torques
 
     def _upon_reset_pre_sim(self, reset_mask: torch.Tensor) -> None:
         """ Hook for additional reset behavior in subclasses. Occurs before sim reset """
@@ -560,7 +460,7 @@ class MSKEnv:
         return total_rewards.detach()
 
     def _get_truncated(self):
-        truncated = (self.get_time() >= self.max_episode_duration).float()
+        truncated = (self.time >= self.max_episode_duration).float()
         return truncated.detach()
 
     def _set_muscle_excitations(self, raw_action) -> None:
@@ -574,15 +474,6 @@ class MSKEnv:
         # Clamp to [-1, 1], then map to [0, 1]
         clamped_action = torch.clamp(raw_action, -1.0, 1.0)
         excitations = (clamped_action + 1.0) / 2.0
-
-        # We don't let the mtp motor extend (negative). Map [-1, 1] to [0.5, 1]
-        if "mtp_angle_r_motor" in self.actuator_id_lookup:
-            mtp_angle_r_motor_id = self.actuator_id_lookup["mtp_angle_r_motor"]
-            excitations[..., mtp_angle_r_motor_id] = excitations[..., mtp_angle_r_motor_id] * 0.5 + 0.5
-        if "mtp_angle_l_motor" in self.actuator_id_lookup:
-            mtp_angle_l_motor_id = self.actuator_id_lookup["mtp_angle_l_motor"]
-            excitations[..., mtp_angle_l_motor_id] = excitations[..., mtp_angle_l_motor_id] * 0.5 + 0.5
-
         self.actuator_excitations.copy_(excitations)
         return
 
@@ -650,10 +541,6 @@ class MSKEnv:
             assert not torch.isnan(obs).any(), "Observations contain NaN!"
             assert not torch.isnan(rew).any(), "Rewards contain NaN!"
 
-        if self.render and hasattr(self.renderer, 'meshes') and len(
-                self.renderer.meshes) > 0:
-            self.renderer.render(self.m, self.d)
-
         return obs, rew, terminated, truncated, info
 
     def step(self, actions):
@@ -677,23 +564,14 @@ class MSKEnv:
         else:
             bolt.fk(self.m, self.d)
 
-    def lookup_body_id(self, body_name: str) -> int:
-        return self.body_id_lookup[body_name] if body_name in self.body_id_lookup else -1
-
-    def lookup_dof_id(self, dof_name: str) -> int:
-        return self.dof_id_lookup[dof_name] if dof_name in self.dof_id_lookup else -1
-
-    def lookup_muscle_id(self, muscle_name: str) -> int:
-        return self.muscle_id_lookup[muscle_name] if muscle_name in self.muscle_id_lookup else -1
-
     def scene_settings(self) -> SceneSettings:
         """ Override to provide custom scene settings for viewer/renderer """
         return SceneSettings()
 
     def additional_metrics(self) -> dict:
-        """ Additional metrics to log during training """
+        """ Hook for additional metrics to log during training """
         return {}
 
     def update_metrics(self) -> None:
-        """ Hook to update metrics """
+        """ Hook to update additional metrics """
         return

@@ -20,15 +20,9 @@ class CurvedTrackEnv(MSKEnv):
             angle_tolerance: float = 30.0,
             lane_index: int = 0  # 0 for Lane 1
     ):
-        super().__init__(
-            num_envs=num_envs,
-            env_config=env_config,
-            device=device,
-            requires_visuals=requires_visuals,
-            live_render=live_render,
-            cuda_graph=cuda_graph
-        )
-        self.toes_ids = [self.lookup_body_id("toes_l"), self.lookup_body_id("toes_r")]
+        super().__init__(num_envs=num_envs, env_config=env_config, device=device, requires_visuals=requires_visuals,
+                         cuda_graph=cuda_graph)
+        self.toes_ids = [self.body_id_lookup["toes_l"], self.body_id_lookup["toes_r"]]
 
         # Olympic Track Specs
         self.lane_width = 1.22

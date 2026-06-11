@@ -23,14 +23,8 @@ class LanesEnv(MSKEnv):
             angle_tolerance: float = 30.0,
             lane_width: float = 0.6,
     ):
-        super().__init__(
-            num_envs=num_envs,
-            env_config=env_config,
-            device=device,
-            requires_visuals=requires_visuals,
-            live_render=live_render,
-            cuda_graph=cuda_graph
-        )
+        super().__init__(num_envs=num_envs, env_config=env_config, device=device, requires_visuals=requires_visuals,
+                         cuda_graph=cuda_graph)
         assert target_dir[UP_IDX] == 0.0, "Target direction should be horizontal only"
 
         # Precompute 2d target facing direction
@@ -39,7 +33,7 @@ class LanesEnv(MSKEnv):
         self.target_facing = self.target_facing / torch.norm(self.target_facing, dim=1, keepdim=True)
 
         self.fwd_axis = torch.tensor(build_axis(FWD_IDX, 1.0), device=self.device).unsqueeze(0)
-        self.toes_ids = [self.lookup_body_id("toes_l"), self.lookup_body_id("toes_r")]
+        self.toes_ids = [self.body_id_lookup["toes_l"], self.body_id_lookup["toes_r"]]
         self.cos_angle_threshold = torch.cos(torch.deg2rad(torch.tensor(angle_tolerance, device=self.device)))
         self.lane_width = lane_width
         self.max_distance_reached = 0.0
