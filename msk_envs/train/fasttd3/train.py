@@ -19,6 +19,7 @@ from msk_envs.train.nets.buffer import SimpleReplayBuffer
 from msk_envs.train.nets.normalizers import EmpiricalNormalization, RewardNormalizer
 from msk_envs.train.nets.simba import SimbaActor, SimbaCritic
 from msk_envs.train.nets.td3_networks import Actor, Critic, load_policy
+from msk_envs.train.nets.optimizer import make_optimizer
 from msk_envs.utils.logged_sim import LoggedSim
 from msk_envs.utils.train_utils import mark_step, TensorAverageMeterDict, LoggingHelper, save_params_td3
 
@@ -152,19 +153,19 @@ def train(
     qnet_target = critic_cls(**critic_kwargs)
     qnet_target.load_state_dict(qnet.state_dict())
 
-    q_optimizer = optim.AdamW(
-        list(qnet.parameters()),
-        lr=torch.tensor(td3_config.critic_learning_rate, device=device),
+    q_optimizer = make_optimizer(
+        model=qnet,
+        lr=td3_config.critic_learning_rate,
+        betas=(0.9, 0.95),
         weight_decay=td3_config.weight_decay,
-        fused=True,
-        betas=(0.9, 0.95)
+        use_muon=td3_config.use_soap,
     )
-    actor_optimizer = optim.AdamW(
-        list(actor.parameters()),
-        lr=torch.tensor(td3_config.actor_learning_rate, device=device),
+    actor_optimizer = make_optimizer(
+        model=actor,
+        lr=td3_config.actor_learning_rate,
+        betas=(0.9, 0.95),
         weight_decay=td3_config.weight_decay,
-        fused=True,
-        betas=(0.9, 0.95)
+        use_muon=td3_config.use_soap,
     )
 
     # Add learning rate schedulers
@@ -367,7 +368,7 @@ def train(
             prepared_batches.append(batch_data)
         return prepared_batches
 
-    if td3_config.compile:
+    if td3_config.compile and not td3_config.use_soap:  # SOAP can't handle compile
         # Default settings are kept the same, but can now be overridden via train_config.
         compile_mode = td3_config.compile_mode
         compile_backend = td3_config.compile_backend

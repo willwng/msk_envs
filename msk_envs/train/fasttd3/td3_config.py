@@ -121,6 +121,9 @@ class TD3Config:
     amp_dtype: str = "bf16"
     """the dtype of the amp"""
 
+    use_soap: bool = False
+    """ whether to use soap optimizer """
+
     weight_decay: float = 0.001
     """ weight decay for optimizers """
 
