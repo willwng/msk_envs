@@ -172,7 +172,7 @@ class EnvConfigSprinter(EnvConfig):
 class EnvConfigAthlete(EnvConfig):
     model_path: str = "../msk_models/athlete/athlete.osim"
     muscle_function_path: str = "../msk_models/athlete/athlete_fn.xml"
-    contact_params_path: str = "../msk_models/athlete/contact_params/contact_params.yaml"
+    contact_params_path: str = "../msk_models/athlete/contact_params/contact_params_generic.yaml"
     starting_pose_path: str = "../msk_models/athlete/poses/starting_pose_run.yaml"
     ignore_short_elastic_tendons: bool = True
 

@@ -20,7 +20,6 @@ class MSKEnv:
     def build_graph(self, *fns):
         if not self.cuda_graph:
             return None
-
         assert torch.cuda.is_available()
         with wp.ScopedCapture() as capture:
             for fn in fns:
