@@ -165,24 +165,25 @@ class StartingStateHelper:
             self.start_activations[reset_mask, :] = random_acts[reset_mask, :]
         return
 
-    def set_starting_poses(
+    def set_starting_state(
             self,
+            time_out: torch.Tensor,
             q_out: torch.Tensor,
             qv_out: torch.Tensor,
             activations_out: torch.Tensor,
             actuator_activations_out: torch.Tensor,
             reset_mask: torch.Tensor,
     ):
-        """ Modify starting pose and velocity for envs where reset_mask is 1 """
+        """ Apply new starting state for envs where reset_mask is 1 """
+        time_out[reset_mask, :] = 0.0
         q_out[reset_mask, :] = self.start_pose[reset_mask, :]
         qv_out[reset_mask, :] = self.start_velocity[reset_mask, :]
         activations_out[reset_mask, :] = self.start_activations[reset_mask, :]
         actuator_activations_out[reset_mask, :] = 0.5
         return
 
-    @staticmethod
     def adjust_for_ground_contact(
-            joint_positions: torch.Tensor,
+            self,
             collider_sizes: torch.Tensor,
             collider_body_id: torch.Tensor,
             collider_positions: torch.Tensor,
@@ -198,5 +199,20 @@ class StartingStateHelper:
             collider_heights -= collider_sizes[non_ground_collider_ids, 0]
             lowest_collider_height = collider_heights.min(dim=1).values
             adjustment = -lowest_collider_height
-            joint_positions[reset_mask, root_height_qpos_id] += adjustment[reset_mask]
+            self.start_pose[reset_mask, root_height_qpos_id] += adjustment[reset_mask]
+        return
+
+    def apply(
+            self,
+            q_out: torch.Tensor,
+            qv_out: torch.Tensor,
+            activations_out: torch.Tensor,
+            actuator_activations_out: torch.Tensor,
+            reset_mask: torch.Tensor,
+    ):
+        """ Modify starting pose and velocity for envs where reset_mask is 1 """
+        q_out[reset_mask, :] = self.start_pose[reset_mask, :]
+        qv_out[reset_mask, :] = self.start_velocity[reset_mask, :]
+        activations_out[reset_mask, :] = self.start_activations[reset_mask, :]
+        actuator_activations_out[reset_mask, :] = 0.5
         return

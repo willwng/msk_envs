@@ -18,6 +18,7 @@ class MSKEnv:
     """ Superclass for MSK environments """
 
     def build_graph(self, *fns):
+        """ Returns the CUDA Graph for executing [fns] """
         if not self.cuda_graph:
             return None
         assert torch.cuda.is_available()
@@ -27,12 +28,47 @@ class MSKEnv:
         return capture.graph
 
     def _setup_cuda_graphs(self):
+        """ Build CUDA graphs for relevant bolt functions """
         self.step_graph = self.build_graph(bolt.step)
         self.fk_graph = self.build_graph(bolt.fk)
         self.reset_graph = self.build_graph(bolt.reset)
         self.post_graph = self.build_graph(bolt.compute_muscle_passive_forces)
         self.analytics_graph = self.build_graph(
             bolt.compute_muscle_moments, bolt.compute_net_joint_moments, bolt.compute_muscle_force_breakdown)
+        return
+
+    def launch_sim_step(self):
+        """ Launch simulator step """
+        if self.cuda_graph:
+            for _ in range(self.sim_steps_per_env_step):
+                bolt.increment_next_time(self.m, self.d, self.delta_t_sim)
+                wp.capture_launch(self.step_graph)
+            wp.capture_launch(self.post_graph)
+            wp.synchronize()
+        else:
+            for _ in range(self.sim_steps_per_env_step):
+                bolt.increment_next_time(self.m, self.d, self.delta_t_sim)
+                bolt.step(self.m, self.d)
+            bolt.compute_muscle_passive_forces(self.m, self.d)
+        return
+
+    def launch_sim_reset(self):
+        """ Launch simulator reset """
+        bolt.set_reset(self.d, self.reset_tensor)
+        if self.cuda_graph:
+            wp.capture_launch(self.reset_graph)
+            wp.synchronize()
+        else:
+            bolt.reset(self.m, self.d)
+        return
+
+    def fk(self):
+        """ Forward kinematics only (only position dependent) """
+        if self.cuda_graph:
+            wp.capture_launch(self.fk_graph)
+            wp.synchronize()
+        else:
+            bolt.fk(self.m, self.d)
         return
 
     def _add_colliders(self, env_config: EnvConfig) -> None:
@@ -65,12 +101,12 @@ class MSKEnv:
             ) if env_config.use_function_based_path else None
         )
         self.load_result = load_result
-        self.m, self.d = load_result.model, load_result.data
+        self.m = load_result.model
+        self.d = load_result.data
         self.root_free = load_result.root_free
 
         # Post-load colliders modifications
         self._add_colliders(env_config)
-        bolt.update_colliders(self.load_result)
         self.ground_rotation = quat_normalize(
             torch.tensor(env_config.ground_rotation, dtype=torch.float, device=device))
         ModelInitializer.modify_ground_collider(
@@ -101,16 +137,22 @@ class MSKEnv:
             muscle_v_max=env_config.muscle_v_max,
             ignore_short_elastic_tendons=env_config.ignore_short_elastic_tendons,
         )
+        ModelInitializer.modify_joints(
+            m=self.m,
+            armature=env_config.armature,
+            use_linear_stop=env_config.use_linear_stop,
+            root_free=self.root_free,
+        )
         ModelInitializer.modify_physics(
             m=self.m,
             gravity=env_config.gravity,
-            armature=env_config.armature,
+            enable_drag=env_config.enable_drag,
+        )
+        ModelInitializer.modify_integrator(
+            m=self.m,
             integrator_accuracy=env_config.integrator_accuracy,
             integrator_use_inf_norm=env_config.integrator_use_inf_norm,
-            use_linear_stop=env_config.use_linear_stop,
-            enable_drag=env_config.enable_drag,
             use_implicit_damping=env_config.use_implicit_damping,
-            root_free=self.root_free,
         )
         bolt.reinitialize_model(self.m, self.d)
 
@@ -272,23 +314,19 @@ class MSKEnv:
         """ Hook for additional reset behavior in subclasses. Occurs after sim reset """
         return
 
-    def _reset_sim(self):
-        # Reset time and starting state
+    def _sample_start_and_reset_sim(self):
+        """ Sample new starting state and reset sim """
         reset_mask = self.reset_tensor.squeeze(-1).bool()
-        if reset_mask.any():
-            self.time[reset_mask] = 0.0
-            self.starting_state_helper.set_starting_poses(
-                q_out=self.joint_positions,
-                qv_out=self.joint_velocities,
-                activations_out=self.muscle_activations,
-                actuator_activations_out=self.actuator_activations,
-                reset_mask=reset_mask
-            )
+        if not reset_mask.any():
+            return
+
+        # Sample new starting state
+        self.starting_state_helper.create_new_starting_poses(reset_mask=reset_mask)
+
         # Ensure contact with ground
         if self.enforce_ground_contact and self.root_free:
             self.fk()
             self.starting_state_helper.adjust_for_ground_contact(
-                joint_positions=self.joint_positions,
                 collider_sizes=self.collider_sizes,
                 collider_body_id=self.collider_body_id,
                 collider_positions=self.collider_positions,
@@ -296,13 +334,19 @@ class MSKEnv:
                 root_height_qpos_id=self.qpos_id_lookup["pelvis_ty"],
                 ground_id=self.ground_id,
             )
+
+        # Apply new starting state
+        self.starting_state_helper.set_starting_state(
+            time_out=self.time,
+            q_out=self.joint_positions,
+            qv_out=self.joint_velocities,
+            activations_out=self.muscle_activations,
+            actuator_activations_out=self.actuator_activations,
+            reset_mask=reset_mask
+        )
+
         # Reset sim
-        bolt.set_reset(self.d, self.reset_tensor)
-        if self.cuda_graph:
-            wp.capture_launch(self.reset_graph)
-            wp.synchronize()
-        else:
-            bolt.reset(self.m, self.d)
+        self.launch_sim_reset()
         return
 
     def _get_actions(self) -> torch.Tensor:
@@ -371,9 +415,8 @@ class MSKEnv:
         """ Internal reset call, resets envs where reset_mask is 1 """
         reset_mask = resets.squeeze(-1).bool()
         self.reset_tensor.copy_(resets)
-        self.starting_state_helper.create_new_starting_poses(reset_mask=reset_mask)
         self._upon_reset_pre_sim(reset_mask=reset_mask)
-        self._reset_sim()
+        self._sample_start_and_reset_sim()
         self._upon_reset_post_sim(reset_mask=reset_mask)
         self.reset_tensor.fill_(0.0)
         return
@@ -388,31 +431,8 @@ class MSKEnv:
         self.perturber.apply(self.root_id, self.body_user_forces)
         return
 
-    def launch_sim_step(self):
-        if self.cuda_graph:
-            for _ in range(self.sim_steps_per_env_step):
-                bolt.increment_next_time(self.m, self.d, self.delta_t_sim)
-                wp.capture_launch(self.step_graph)
-            wp.capture_launch(self.post_graph)
-            wp.synchronize()
-        else:
-            for _ in range(self.sim_steps_per_env_step):
-                bolt.increment_next_time(self.m, self.d, self.delta_t_sim)
-                bolt.step(self.m, self.d)
-            bolt.compute_muscle_passive_forces(self.m, self.d)
-        return
-
-    def fk(self):
-        """ Forward kinematics only (only position dependent) """
-        if self.cuda_graph:
-            wp.capture_launch(self.fk_graph)
-            wp.synchronize()
-        else:
-            bolt.fk(self.m, self.d)
-
     def rl_step(self):
-        # Only compute reward dict once per step
-        self._compute_raw_reward_dict()
+        self._compute_raw_reward_dict()  # Note we only compute reward dict once per step
 
         final_obs = self._get_obs()
         rew = self.get_rewards()
@@ -434,6 +454,7 @@ class MSKEnv:
         }
 
         if self.debug:
+            assert not torch.isnan(final_obs).any(), "Observations contain NaN!"
             assert not torch.isnan(obs).any(), "Observations contain NaN!"
             assert not torch.isnan(rew).any(), "Rewards contain NaN!"
 
