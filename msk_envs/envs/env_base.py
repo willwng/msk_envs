@@ -320,22 +320,8 @@ class MSKEnv:
         if not reset_mask.any():
             return
 
-        # Sample new starting state
+        # Sample new starting state and apply
         self.starting_state_helper.create_new_starting_poses(reset_mask=reset_mask)
-
-        # Ensure contact with ground
-        if self.enforce_ground_contact and self.root_free:
-            self.fk()
-            self.starting_state_helper.adjust_for_ground_contact(
-                collider_sizes=self.collider_sizes,
-                collider_body_id=self.collider_body_id,
-                collider_positions=self.collider_positions,
-                reset_mask=reset_mask,
-                root_height_qpos_id=self.qpos_id_lookup["pelvis_ty"],
-                ground_id=self.ground_id,
-            )
-
-        # Apply new starting state
         self.starting_state_helper.set_starting_state(
             time_out=self.time,
             q_out=self.joint_positions,
@@ -344,6 +330,28 @@ class MSKEnv:
             actuator_activations_out=self.actuator_activations,
             reset_mask=reset_mask
         )
+
+        # Ensure contact with ground
+        if self.enforce_ground_contact and self.root_free:
+            self.fk()
+            self.starting_state_helper.adjust_for_ground_contact(
+                root_pos=self.root_pos,
+                collider_sizes=self.collider_sizes,
+                collider_body_id=self.collider_body_id,
+                collider_positions=self.collider_positions,
+                ground_rotation=self.ground_rotation,
+                reset_mask=reset_mask,
+                root_height_qpos_id=self.qpos_id_lookup["pelvis_ty"],
+                ground_id=self.ground_id,
+            )
+            self.starting_state_helper.set_starting_state(
+                time_out=self.time,
+                q_out=self.joint_positions,
+                qv_out=self.joint_velocities,
+                activations_out=self.muscle_activations,
+                actuator_activations_out=self.actuator_activations,
+                reset_mask=reset_mask
+            )
 
         # Reset sim
         self.launch_sim_reset()

@@ -4,6 +4,7 @@ import torch
 import yaml
 
 from msk_envs.utils.global_params import UP_IDX
+from msk_envs.utils.reward_lib import compute_ground_height
 
 
 @dataclass
@@ -184,9 +185,11 @@ class StartingStateHelper:
 
     def adjust_for_ground_contact(
             self,
+            root_pos: torch.Tensor,
             collider_sizes: torch.Tensor,
             collider_body_id: torch.Tensor,
             collider_positions: torch.Tensor,
+            ground_rotation: torch.Tensor,
             reset_mask: torch.Tensor,
             root_height_qpos_id: int,
             ground_id: int,
@@ -195,10 +198,11 @@ class StartingStateHelper:
 
         # Need at least one non-root collider
         if non_ground_collider_ids.size(0) > 1:
+            ground_height = compute_ground_height(position=root_pos, ground_rotation=ground_rotation)
             collider_heights = collider_positions[:, non_ground_collider_ids, UP_IDX]
             collider_heights -= collider_sizes[non_ground_collider_ids, 0]
             lowest_collider_height = collider_heights.min(dim=1).values
-            adjustment = -lowest_collider_height
+            adjustment = -lowest_collider_height + ground_height
             self.start_pose[reset_mask, root_height_qpos_id] += adjustment[reset_mask]
         return
 

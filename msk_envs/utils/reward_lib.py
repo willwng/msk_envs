@@ -59,7 +59,7 @@ def self_collision_penalty(collision_forces, force_bound):
     return norm_collision_forces.sum(dim=1)
 
 
-def compute_ground_vertical(position: torch.Tensor, ground_rotation: torch.Tensor) -> torch.Tensor:
+def compute_ground_height(position: torch.Tensor, ground_rotation: torch.Tensor) -> torch.Tensor:
     """ At the given positions, find the ground height at that given (x, z) """
     ground_normal = torch.zeros_like(position)
     ground_normal[:, UP_IDX] = 1.0
@@ -78,7 +78,7 @@ def compute_ground_vertical(position: torch.Tensor, ground_rotation: torch.Tenso
 
 def has_fallen(root_pos: torch.Tensor, ground_rotation: torch.Tensor, min_root=MIN_ROOT_HEIGHT):
     # Find height of root wrst ground
-    ground_vertical = compute_ground_vertical(root_pos, ground_rotation)
+    ground_vertical = compute_ground_height(root_pos, ground_rotation)
     root_height = root_pos[:, UP_IDX] - ground_vertical
     fallen = (root_height < min_root)
     return fallen.detach()
