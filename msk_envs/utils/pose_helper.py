@@ -175,7 +175,7 @@ class StartingStateHelper:
             reset_mask: torch.Tensor,
     ):
         """ Apply new starting state for envs where reset_mask is 1 """
-        time_out[reset_mask, :] = 0.0
+        time_out[reset_mask] = 0.0
         q_out[reset_mask, :] = self.start_pose[reset_mask, :]
         qv_out[reset_mask, :] = self.start_velocity[reset_mask, :]
         activations_out[reset_mask, :] = self.start_activations[reset_mask, :]
