@@ -5,9 +5,9 @@ from dataclasses import dataclass
 class QFlexRefConfig:
     """Config for the reference (JAX) Qflex / FlowExp algorithm. """
 
-    num_envs: int = 1024
-    """parallel environments"""
-    num_learning_iterations: int = 150_000
+    num_envs: int = 256
+    """parallel environments (reference uses 8)"""
+    num_learning_iterations: int = 5_000_000
     """total transitions to collect"""
     start_env_steps: int = 30_000
     """warmup transitions of random actions before learning"""
@@ -48,7 +48,8 @@ class QFlexRefConfig:
     """number of Q-gradient ascent steps"""
 
     # --- checkpoint / logging / eval ---
-    save_interval: int = 1000
+    save_interval: int = 250_000
+    """interval in transitions to save the policy"""
     logging_interval: int = 100
     num_eval_envs: int = 1
     eval_freq: int = 2000

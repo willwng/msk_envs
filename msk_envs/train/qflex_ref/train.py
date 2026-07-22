@@ -45,7 +45,7 @@ def train(
         device=device,
         num_envs=cfg.num_envs,
         num_steps_per_env=cfg.logging_interval,
-        num_learning_iterations=cfg.num_learning_iterations,
+        num_learning_iterations=max(cfg.num_learning_iterations // cfg.num_envs, 1),
         is_main_process=True,
         num_gpus=1,
     )
@@ -54,7 +54,11 @@ def train(
     # ------------------------------------------------------------------ envs
     n_obs, n_act = envs.num_obs(), envs.num_actions()
 
+    # Config counts are in transitions; this loop iterates per env-step, so
+    # divide by num_envs to get iteration/per-env counts.
+    num_iterations = max(cfg.num_learning_iterations // cfg.num_envs, 1)
     learning_starts = max(cfg.start_env_steps // cfg.num_envs, 1)
+    save_interval = max(cfg.save_interval // cfg.num_envs, 1)
     buffer_capacity = max(cfg.buffer_size // cfg.num_envs, 1)
     batch_size = max(cfg.batch_size // cfg.num_envs, 1)  # per-env; total minibatch = batch_size * num_envs
 
@@ -133,8 +137,8 @@ def train(
     # -------------------------------------------------------------- training
     obs = envs.reset()
     global_step = 0
-    pbar = tqdm.tqdm(total=cfg.num_learning_iterations, initial=global_step)
-    while global_step < cfg.num_learning_iterations:
+    pbar = tqdm.tqdm(total=num_iterations, initial=global_step)
+    while global_step < num_iterations:
         with logging_helper.record_collection_time():
             with torch.no_grad():
                 if global_step < learning_starts:
@@ -179,7 +183,7 @@ def train(
                         it=global_step, loss_dict=loss_metrics, extra_log_dicts=extra_log_dicts
                     )
 
-            if cfg.save_interval > 0 and global_step > 0 and global_step % cfg.save_interval == 0:
+            if save_interval > 0 and global_step > 0 and global_step % save_interval == 0:
                 logger.info(f"Saving policy at global step {global_step}")
                 save_path = f"models/{exp_name}/policy_{global_step}.pkl"
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
