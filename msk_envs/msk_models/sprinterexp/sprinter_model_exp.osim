@@ -16082,7 +16082,6 @@
                     <default_activation>0.5</default_activation>
                 </ActivationCoordinateActuator>
 
-
                 <ExponentialContactForce name="right_foot_1">
                     <!--Orientation and location of the contact plane wrt Ground. The positive z-axis of the contact plane defines the normal.-->
                     <contact_plane_transform>-1.5707963267948966 0 -0 0 0 0</contact_plane_transform>
@@ -16461,155 +16460,13 @@
                         <location>0.0 -0.01 0.0</location>
                     </Station>
                 </ExponentialContactForce>
-
-
             </objects>
             <groups/>
         </ForceSet>
+
         <!--Geometry to be used in contact forces.-->
         <ContactGeometrySet name="contactgeometryset">
             <objects>
-                <!--                <ContactSphere name="right_foot_1">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/toes_r</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.069900000000000004 -0.029899999999999999 -0.0286</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="right_foot_2">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/toes_r</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.029399999999999999 -0.029899999999999999 1.5211751278748601e-08</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="right_foot_3">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_r</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.14990000000000001 -0.028199999999999999 6.8842262189450194e-08</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="right_foot_4">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_r</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.14990000000000001 -0.028199999999999999 -0.022726164905746998</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="right_foot_5">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_r</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.070000000000000007 -0.028199999999999999 0.044900000000000002</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="right_foot_6">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_r</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.11899999999999999 -0.028199999999999999 -6.0926480487458203e-08</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="right_foot_7">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_r</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0 0.0 0</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="left_foot_1">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/toes_l</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.069900000000000004 -0.029899999999999999 0.0286</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="left_foot_2">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/toes_l</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.029399999999999999 -0.029899999999999999 -1.5211751278748601e-08</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="left_foot_3">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_l</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.14990000000000001 -0.028199999999999999 -6.8842262189450194e-08</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="left_foot_4">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_l</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.14990000000000001 -0.028199999999999999 0.022726164905746998</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="left_foot_5">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_l</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.070000000000000007 -0.028199999999999999 -0.044900000000000002</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="left_foot_6">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_l</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0.11899999999999999 -0.028199999999999999 6.0926480487458203e-08</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-                <!--                <ContactSphere name="left_foot_7">-->
-                <!--                    &lt;!&ndash;Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).&ndash;&gt;-->
-                <!--                    <socket_frame>/bodyset/calcn_l</socket_frame>-->
-                <!--                    &lt;!&ndash;Location of geometry center in the PhysicalFrame.&ndash;&gt;-->
-                <!--                    <location>0 0.0 0</location>-->
-                <!--                    &lt;!&ndash;Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).&ndash;&gt;-->
-                <!--                    <orientation>0 0 0</orientation>-->
-                <!--                    &lt;!&ndash;Radius of the sphere (default: 0).&ndash;&gt;-->
-                <!--                    <radius>0.02</radius>-->
-                <!--                </ContactSphere>-->
-
                 <ContactEllipsoid name="pelvis_capsule">
                     <!--Body name to connect the contact geometry to-->
                     <socket_frame>/bodyset/pelvis</socket_frame>
