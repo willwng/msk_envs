@@ -127,7 +127,7 @@ def pretty_print_base_args(args: BaseArgs):
         TD3Config.pretty_print(args.td3_config)
     elif args.algo.lower() == "qflex":
         QFlexConfig.pretty_print(args.qflex_config)
-    elif args.algo.lower() in ("qflex_jax", "qflex_ref"):
+    elif args.algo.lower() == "qflex_ref":
         QFlexRefConfig.pretty_print(args.qflex_ref_config)
     elif args.algo.lower() == "ppo":
         PPOConfig.pretty_print(args.ppo_config)
