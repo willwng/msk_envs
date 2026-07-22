@@ -7,7 +7,8 @@ from msk_envs.train.hyperparams import get_args, pretty_print_base_args
 from msk_envs.train.dep.dep import DEP
 from msk_envs.utils.logged_sim import LoggedSim
 # from msk_envs.train.nets.sac_networks import load_policy
-from msk_envs.train.nets.td3_networks import load_policy
+# from msk_envs.train.nets.td3_networks import load_policy
+from msk_envs.train.nets.ppo_networks import load_policy
 
 
 def main():
@@ -24,7 +25,7 @@ def main():
     env_config.swap_lr = False
     # env_config.integrator_accuracy = 0.1
     # env_config.armature = 0.0
-    env_config.integrator_use_inf_norm = False
+    # env_config.integrator_use_inf_norm = False
 
     has_cuda_support = torch.cuda.is_available()
     device = torch.device("cuda" if has_cuda_support else f"cpu")
@@ -37,7 +38,7 @@ def main():
 
     actions = envs.get_blank_actions()
 
-    # policy = load_policy("/home/marth/Documents/msk_envs/models/post_submission_test_2026-05-26_17-10/post_submission_test_2026-05-26_17-10_148000.pt")
+    # policy = load_policy("/home/marth/Documents/msk_envs/models/sprinter_ppo3_2026-07-01_12-57/sprinter_ppo3_2026-07-01_12-57_10700.pt")
     # policy.to(device)
 
     dep = DEP(n_motors=envs.num_muscles,
@@ -53,8 +54,8 @@ def main():
               device=device)
 
     # Build a SimLogger to give us a whole pdf of stuf
-    max_episode_length = int(env_config.max_episode_duration / env_config.delta_t)
-    recording_fps = 120.0
+    max_episode_length = int(envs.max_episode_duration / envs.delta_t)
+    recording_fps = 30.0
     sim = LoggedSim(envs, device, delta_t_log=1.0 / recording_fps)
     obs = sim.reset()
 
