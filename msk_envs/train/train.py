@@ -149,25 +149,6 @@ def main():
             exp_name=args.exp_name,
             device=device,
         )
-    elif args.algo == "qflex_jax":  # Reference JAX QFlex
-        import msk_envs.train.qflex_ref.train as qflex_jax
-        envs, eval_envs = _build_envs(
-            num_envs=qflex_ref_config.num_envs,
-            num_eval_envs=qflex_ref_config.num_eval_envs,
-            env_config=env_config,
-            build_cuda_graph=True,
-            device=device,
-        )
-        qflex_jax.train(
-            cfg=qflex_ref_config,
-            envs=envs,
-            eval_envs=eval_envs,
-            traj_out_folder=traj_out_folder,
-            analytics_out_folder=analytics_out_folder,
-            exp_name=args.exp_name,
-            device=device,
-            seed=args.seed,
-        )
     elif args.algo == "qflex_ref":  # Reference JAX QFlex with the OffPolicyTrainer
         import msk_envs.train.qflex_ref.train_ref as qflex_ref
         envs, eval_envs = _build_envs(
