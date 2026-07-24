@@ -17,8 +17,6 @@ class QFlexRefConfig:
     """transitions per gradient update"""
     num_updates: int = 1
     """gradient updates per env step"""
-    num_steps: int = 1
-    """multi-step return horizon"""
 
     learning_rate: float = 3e-4
     """lr for Q / velocity / reference policy"""
