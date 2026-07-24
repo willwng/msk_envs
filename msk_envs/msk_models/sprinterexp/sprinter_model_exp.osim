@@ -16098,9 +16098,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16125,9 +16125,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16152,9 +16152,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16179,9 +16179,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16206,9 +16206,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16233,9 +16233,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16260,9 +16260,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16287,9 +16287,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16314,9 +16314,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16341,9 +16341,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16368,9 +16368,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16395,9 +16395,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16422,9 +16422,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -16449,9 +16449,9 @@
                     <!--Velocity below which static friction conditions are triggered (0.01 m/s).-->
                     <settle_velocity>0.01</settle_velocity>
                     <!--Initial value of the static coefficient of friction.-->
-                    <initial_mu_static>0.69999999999999996</initial_mu_static>
+                    <initial_mu_static>0.95</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
-                    <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <initial_mu_kinetic>0.3</initial_mu_kinetic>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
