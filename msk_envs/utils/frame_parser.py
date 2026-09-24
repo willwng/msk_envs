@@ -173,7 +173,7 @@ def parse_kinetic_data(
     # com = bolt.subtree_com_positions(d)[world_id][1].tolist()  # why am I hardcoded!
     body_com_positions = bolt.body_com_positions(d)[world_id]
     grf = bolt.grf(d)[world_id].tolist()
-    gravity = bolt.gravity(m)
+    gravity = bolt.gravity(m).y
     com = bolt.body_subtree_com_positions(d)[world_id, 0].tolist()
     mass = bolt.body_mass(m).sum()
 
@@ -312,7 +312,6 @@ def parse_body_forces(
     body_force_gravity = bolt.body_force_gravity(d)
     body_force_contact = bolt.body_force_contact(d)
     body_force_muscle = bolt.body_force_muscle(d)
-    body_force_drag = bolt.body_force_drag(d)
 
     body_forces = []
     for i in range(bolt.get_num_bodies(m)):
@@ -321,7 +320,6 @@ def parse_body_forces(
             gravity=tuple(body_force_gravity[world_id][i].tolist()),
             contact=tuple(body_force_contact[world_id][i].tolist()),
             muscle=tuple(body_force_muscle[world_id][i].tolist()),
-            drag=tuple(body_force_drag[world_id][i].tolist()),
         )
         body_forces.append(angle)
     return body_forces

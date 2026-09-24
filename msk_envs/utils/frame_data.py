@@ -335,7 +335,6 @@ class BodyForces:
     name: str
     gravity: tuple
     contact: tuple
-    drag: tuple
     muscle: tuple
 
     def to_dict(self):
@@ -343,7 +342,6 @@ class BodyForces:
             "name": self.name,
             "gravity": self.gravity,
             "contact": self.contact,
-            "drag": self.drag,
             "muscle": self.muscle,
         }
 
@@ -353,7 +351,6 @@ class BodyForces:
             name=data["name"],
             gravity=data["gravity"],
             contact=data["contact"],
-            drag=data["drag"],
             muscle=data["muscle"],
         )
 

@@ -111,11 +111,9 @@ class ModelInitializer:
     def modify_physics(
             m: Model,
             gravity: float,
-            enable_drag: bool,
     ) -> None:
         # Physics
-        bolt.set_drag_enabled(m, enable_drag)
-        bolt.set_gravity(m, gravity)
+        bolt.set_gravity(m, wp.vec3(0.0, gravity, 0.0))
         return
 
     @staticmethod

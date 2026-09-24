@@ -6,6 +6,7 @@ import torch
 import warp as wp
 
 from msk_envs.utils.quat import quat_normalize
+from msk_envs.utils.lambda_control import LambdaControl
 from msk_envs.utils.model_initializer import ModelInitializer
 from msk_envs.utils.perturber import Perturber
 from msk_envs.utils.pose_helper import StartingStateHelper
@@ -140,7 +141,6 @@ class MSKEnv:
         ModelInitializer.modify_physics(
             m=self.m,
             gravity=env_config.gravity,
-            enable_drag=env_config.enable_drag,
         )
         ModelInitializer.modify_integrator(
             m=self.m,
@@ -186,7 +186,6 @@ class MSKEnv:
         self.muscle_excitations = bolt.muscle_excitations(self.d)
         self.muscle_fiber_lengths = bolt.muscle_fiber_lengths(self.d)
         self.muscle_fiber_velocities = bolt.muscle_fiber_velocities(self.d)
-        self.muscle_powers = bolt.muscle_powers(self.d)
         self.muscle_passive_length_multiplier = bolt.muscle_passive_length_multiplier(self.d)
         self.muscle_active_length_multiplier = bolt.muscle_active_length_multiplier(self.d)
         self.muscle_active_velocity_multiplier = bolt.muscle_active_velocity_multiplier(self.d)

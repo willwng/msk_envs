@@ -35,8 +35,6 @@ class EnvConfig:
     """ Whether the model root is free (floating base) """
     model_path: str = ""
     """ OpenSim model file path """
-    enable_drag: bool = False
-    """ Whether to enable drag forces """
     use_specified_contact_params: bool = True
     """ Whether to use contact parameters defined in contact_params_path """
     contact_params_path: str = ""
