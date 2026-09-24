@@ -184,8 +184,8 @@ class MSKEnv:
         # [num_envs, num_muscles]
         self.muscle_activations = bolt.muscle_activations(self.d)
         self.muscle_excitations = bolt.muscle_excitations(self.d)
-        self.muscle_fiber_lengths = bolt.muscle_fiber_lengths(self.d)
-        self.muscle_fiber_velocities = bolt.muscle_fiber_velocities(self.d)
+        self.muscle_norm_fiber_lengths = bolt.muscle_norm_fiber_lengths(self.d)  # in optimal fiber length (ofl)
+        self.muscle_norm_fiber_velocities = bolt.muscle_norm_fiber_velocities(self.d)  # in ofl/s
         self.muscle_passive_length_multiplier = bolt.muscle_passive_length_multiplier(self.d)
         self.muscle_active_length_multiplier = bolt.muscle_active_length_multiplier(self.d)
         self.muscle_active_velocity_multiplier = bolt.muscle_active_velocity_multiplier(self.d)

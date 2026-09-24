@@ -422,7 +422,7 @@ def train(
                     actions = explore(obs=norm_obs, dones=dones)
 
                 # DEP EXPLORATION
-                actions = dep_explorer.explore(muscle_states=envs.muscle_fiber_lengths, actions=actions)
+                actions = dep_explorer.explore(muscle_states=envs.muscle_norm_fiber_lengths, actions=actions)
 
             next_obs, rewards, terminated, truncations, info = envs.step(actions)
             collect_experience(

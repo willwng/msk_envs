@@ -66,7 +66,7 @@ class VerticalEnv(MSKEnv):
         obs = torch.cat([
             self.time.view(self.num_worlds, 1),
             self.muscle_activations,
-            self.muscle_fiber_lengths,
+            self.muscle_norm_fiber_lengths,
             self.actuator_activations,
             self.joint_positions,
             self.joint_velocities,

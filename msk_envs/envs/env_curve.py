@@ -45,7 +45,7 @@ class CurvedTrackEnv(MSKEnv):
         obs = torch.cat([
             self._get_angle_progress().view(self.num_worlds, 1),
             self.muscle_activations,
-            self.muscle_fiber_lengths,
+            self.muscle_norm_fiber_lengths,
             self.actuator_activations,
             self.joint_positions,
             self.joint_velocities,

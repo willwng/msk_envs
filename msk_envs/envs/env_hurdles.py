@@ -131,7 +131,7 @@ class HurdlesEnv(LanesEnv):
 
         obs = torch.cat([
             self.muscle_activations,
-            self.muscle_fiber_lengths,
+            self.muscle_norm_fiber_lengths,
             self.actuator_activations,
             joint_positions_without_x,
             self.joint_velocities,

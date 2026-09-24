@@ -85,7 +85,7 @@ class LocomotionEnv(MSKEnv):
         obs = torch.cat([
             self.command_vel,
             self.muscle_activations,
-            self.muscle_fiber_lengths,
+            self.muscle_norm_fiber_lengths,
             self.actuator_activations,
             joint_positions,
             self.joint_velocities,

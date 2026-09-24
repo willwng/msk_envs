@@ -109,7 +109,7 @@ class ImitateEnv(MSKEnv):
         obs = torch.cat([
             self.time.unsqueeze(1),
             self.muscle_activations,
-            self.muscle_fiber_lengths,
+            self.muscle_norm_fiber_lengths,
             self.actuator_activations,
             self.joint_positions,
             self.joint_velocities,
