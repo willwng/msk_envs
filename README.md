@@ -69,5 +69,5 @@ Run the script in Blender (may take several minutes to load the trajectory).
 The script will create a new scene with the animation.
 
 ## License
-The training scripts of this project are derived from third-party
+Several RL training scripts of this project are derived from third-party
 open-source software. See their respective license.
