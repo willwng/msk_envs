@@ -1,7 +1,5 @@
 import bpy
-import mathutils
 from mathutils import Vector
-import math
 
 from util import vec_yup_zup
 from material import create_muscle_material
@@ -34,21 +32,9 @@ def update_capsule(capsule, point1, point2, activation):
     capsule.location = (Vector(point1) + Vector(point2)) / 2
     capsule.scale[2] = distance
 
-    # Rotate capsule to align with direction vector
-    if abs(direction.z) < 0.999:  # Avoid gimbal lock
-        z_axis = Vector((0, 0, 1))
-        direction_normalized = direction.normalized()
-        rotation_axis = z_axis.cross(direction_normalized)
-        rotation_angle = math.acos(max(-1, min(1, z_axis.dot(direction_normalized))))
-        if rotation_axis.length > 0.001:
-            rotation_axis.normalize()
-            rotation_quat = mathutils.Quaternion(rotation_axis, rotation_angle)
-            capsule.rotation_mode = "QUATERNION"
-            capsule.rotation_quaternion = rotation_quat
-    else:
-        capsule.rotation_mode = "QUATERNION"
-        if direction.z < 0:
-            capsule.rotation_quaternion = mathutils.Quaternion((0, 1, 0), math.pi)
+    # Rotate the capsule's z-axis onto the segment direction (shortest arc, also handles parallel/antiparallel)
+    capsule.rotation_mode = "QUATERNION"
+    capsule.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(direction)
 
     capsule["activation"] = activation
     return capsule
@@ -91,9 +77,7 @@ def create_capsule_between_points(radius, name):
 def update_muscle(muscle, frame_num):
     name = muscle["name"]
     points = muscle.get("points", [])
-    max_isometric_force = muscle["max_isometric_force"]
     activation = muscle["activation"]
-    # radius = math.sqrt(max_isometric_force) / 8000
     radius = 0.005
 
     # build cylinder between points
@@ -119,4 +103,3 @@ def update_muscle(muscle, frame_num):
         capsule.keyframe_insert(data_path="rotation_quaternion", frame=frame_num)
         capsule.keyframe_insert(data_path="scale", frame=frame_num)
         capsule.keyframe_insert(data_path='["activation"]', frame=frame_num)
-    return

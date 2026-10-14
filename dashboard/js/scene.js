@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import {FontLoader} from 'three/addons/loaders/FontLoader.js';
 import {TextGeometry} from 'three/addons/geometries/TextGeometry.js';
 
-const textureLoader = new THREE.TextureLoader();
-const planeTexture = textureLoader.load('assets/textures/plane.png');
 
 
 function setupLightsSky(scene) {

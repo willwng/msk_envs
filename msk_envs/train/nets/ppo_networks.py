@@ -3,8 +3,6 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 
-from msk_envs.train.nets.normalizers import EmpiricalNormalization
-
 
 def build_mlp(
         input_dim: int,
@@ -128,56 +126,3 @@ class PPOCritic(nn.Module):
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         return self.critic(obs).squeeze(-1)
-
-
-# ---------------------------------------------------------------- inference
-class Policy(nn.Module):
-    """Deterministic inference wrapper (normalizer + actor mean)."""
-
-    def __init__(self, n_obs: int, n_act: int, args: dict):
-        super().__init__()
-        self.args = args
-        self.actor = PPOActor(
-            n_obs=n_obs,
-            n_act=n_act,
-            hidden_dims=list(args.get("hidden_dims", [512, 256, 128])),
-            init_noise_std=args.get("init_noise_std", 0.8),
-            activation=args.get("activation", "ELU"),
-            dropout_prob=args.get("dropout_prob", 0.0),
-            use_layer_norm=args.get("use_layer_norm", False),
-            min_noise_std=args.get("min_noise_std", None),
-            min_mean_noise_std=args.get("min_mean_noise_std", None),
-            device="cpu",
-        )
-        self.obs_normalizer = EmpiricalNormalization(shape=n_obs, device="cpu")
-        self.actor.eval()
-        self.obs_normalizer.eval()
-
-    def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        norm_obs = self.obs_normalizer(obs)
-        return self.actor(norm_obs)
-
-    def act(self, obs: torch.Tensor) -> Normal:
-        actions = self.forward(obs)
-        return Normal(actions, torch.ones_like(actions) * 1e-8)
-
-
-def load_policy(checkpoint_path):
-    torch_checkpoint = torch.load(
-        f"{checkpoint_path}", map_location="cpu", weights_only=False
-    )
-    args = torch_checkpoint["args"]
-    actor_state = torch_checkpoint["actor_state_dict"]
-    n_obs = actor_state["actor.0.weight"].shape[-1]
-    n_act = actor_state["std"].shape[0]
-
-    policy = Policy(n_obs=n_obs, n_act=n_act, args=args)
-    policy.actor.load_state_dict(actor_state)
-
-    obs_norm_state = torch_checkpoint["obs_normalizer_state"]
-    if obs_norm_state is None or len(obs_norm_state) == 0:
-        policy.obs_normalizer = nn.Identity()
-    else:
-        policy.obs_normalizer.load_state_dict(obs_norm_state)
-
-    return policy

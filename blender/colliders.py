@@ -6,7 +6,15 @@ import mathutils
 from material import create_collider_material
 from util import vec_yup_zup, quat_xyzw_to_wxyz
 
-collider_material = create_collider_material()
+collider_material = None
+""" Shared by all colliders, created on first use """
+
+
+def get_collider_material():
+    global collider_material
+    if collider_material is None:
+        collider_material = create_collider_material()
+    return collider_material
 
 
 def create_sphere(name):
@@ -19,7 +27,7 @@ def create_sphere(name):
     sphere.name = name
     sphere.hide_render = False
     sphere.hide_viewport = False
-    sphere.data.materials.append(collider_material)
+    sphere.data.materials.append(get_collider_material())
     return sphere
 
 
@@ -64,21 +72,18 @@ def create_capsule(name, radius=1.0, half_depth=2.0):
     capsule.hide_render = False
     capsule.hide_viewport = False
 
-    capsule.data.materials.append(collider_material)
+    capsule.data.materials.append(get_collider_material())
 
     return capsule
 
 
 def create_collider(name, geom_type, scale):
-    if geom_type == 0:  # plane
-        collider = None  # todo: plane collider
-    elif geom_type == 2:  # sphere
-        collider = create_sphere(name)
-    elif geom_type == 3:  # capsule
-        collider = create_capsule(name, radius=scale[0], half_depth=scale[1])
-    else:
-        collider = None  # todo: other collider types
-    return collider
+    """ Spheres and capsules (geom_type 2 and 3, see msk_envs/trajectory_io.py); other types aren't drawn """
+    if geom_type == 2:
+        return create_sphere(name)
+    if geom_type == 3:
+        return create_capsule(name, radius=scale[0], half_depth=scale[1])
+    return None
 
 
 def update_collider(collider, frame_num):
@@ -104,16 +109,14 @@ def update_collider(collider, frame_num):
         collider.location = pos
         collider.rotation_mode = 'QUATERNION'
         collider.rotation_quaternion = rotation
-        if geom_type != 3:
-            collider.scale = scale
+        if geom_type == 2:  # unit sphere scaled to the radius (scale[0])
+            collider.scale = (scale[0], scale[0], scale[0])
 
         collider.keyframe_insert(data_path="location", frame=frame_num)
         collider.keyframe_insert(data_path="rotation_quaternion", frame=frame_num)
         collider.keyframe_insert(data_path="scale", frame=frame_num)
 
-    return
-
 
 def clear_collider_cache():
     global collider_material
-    collider_material = create_collider_material()
+    collider_material = None

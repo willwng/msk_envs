@@ -61,6 +61,7 @@ function loadVisual(file, opacity, color, callback) {
 }
 
 
+// geomType: bolt.GeomType value (see msk_envs/trajectory_io.py GEOM_TYPES)
 function loadCollider(spheres, capsules, geomType, scale, rot, color, callback) {
     const opacity = 0.8;
     if (geomType === 0) {
@@ -125,7 +126,7 @@ function loadTarget(radius, rot, color, callback) {
         new THREE.SphereGeometry(radius, 16, 16),
         new THREE.MeshStandardMaterial({color: color, wireframe: false, transparent: true, opacity: opacity})
     );
-    sphere.quaternion.set(rot[1], rot[2], rot[3], rot[0]);
+    sphere.quaternion.set(rot[0], rot[1], rot[2], rot[3]);
     callback(sphere);
 }
 

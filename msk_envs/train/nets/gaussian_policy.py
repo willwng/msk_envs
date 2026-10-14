@@ -3,8 +3,6 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from msk_envs.train.nets.normalizers import EmpiricalNormalization
-
 
 class GaussianPolicy(nn.Module):
     def __init__(
@@ -137,48 +135,3 @@ class GaussianPolicy(nn.Module):
             action = raw_action
 
         return action
-
-
-class Policy(nn.Module):
-    def __init__(self, n_obs: int, n_act: int, args: dict):
-        super().__init__()
-
-        self.args = args
-        self.actor = GaussianPolicy(
-            n_obs=n_obs,
-            n_act=n_act,
-            num_envs=args["num_envs"],
-            hidden_dim=args["actor_hidden_dim"],
-            log_std_max=args["log_std_max"],
-            log_std_min=args["log_std_min"],
-            use_tanh=args["use_tanh"],
-            use_layer_norm=args["use_layer_norm"],
-            device="cpu",
-            action_scale=args["action_scale"] if "action_scale" in args else None,
-            action_bias=args["action_bias"] if "action_bias" in args else None,
-        )
-
-        self.obs_normalizer = EmpiricalNormalization(shape=n_obs, device="cpu")
-        self.actor.eval()
-        self.obs_normalizer.eval()
-
-    def forward(self, obs: torch.Tensor, use_mean: bool = False) -> torch.Tensor:
-        norm_obs = self.obs_normalizer(obs)
-        action, mean, std = self.actor(norm_obs)
-        return action if not use_mean else mean
-
-
-def load_policy(checkpoint_path):
-    torch_checkpoint = torch.load(f"{checkpoint_path}", map_location="cpu", weights_only=False)
-    args = torch_checkpoint["args"]
-    n_obs = torch_checkpoint["actor_state_dict"]["net.0.weight"].shape[-1]
-    n_act = torch_checkpoint["actor_state_dict"]["fc_mu.0.weight"].shape[0]
-    policy = Policy(n_obs=n_obs, n_act=n_act, args=args)
-    policy.actor.load_state_dict(torch_checkpoint["actor_state_dict"])
-
-    if len(torch_checkpoint["obs_normalizer_state"]) == 0:
-        policy.obs_normalizer = nn.Identity()
-    else:
-        policy.obs_normalizer.load_state_dict(
-            torch_checkpoint["obs_normalizer_state"])
-    return policy

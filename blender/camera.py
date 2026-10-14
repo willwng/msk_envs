@@ -21,24 +21,19 @@ def point_camera_at_target(camera, target_location):
     camera.rotation_euler = rot_quat.to_euler()
 
 
-def update_camera(camera, camera_pos, frame_idx):
+CAMERA_OFFSETS = {
+    "side": lambda p: [p[0] + 1.0, p[1] - 7.5, p[2] + 0.75],
+    "olympic": lambda p: [0.8 * (p[0] + 10.0), p[1] - 10.0, p[2] + 3.0],
+    "front": lambda p: [p[0] + 7.5, p[1], p[2] + 1.0],
+}
+""" Camera location for each view, given the (z-up) position it follows """
+
+
+def update_camera(camera, camera_pos, frame_idx, view: str = "side"):
+    """ Place the camera for [view] relative to [camera_pos] (y-up), looking at it, and keyframe it """
     camera_pos = vec_yup_zup(camera_pos)
+    camera.location = CAMERA_OFFSETS[view](camera_pos)
+    point_camera_at_target(camera, camera_pos)
 
-    # camera_pos[2] = 1
-
-    # side cam
-    camera.location = [camera_pos[0] + 1.0, camera_pos[1] - 7.5, camera_pos[2] + 0.75]
-
-    # olympic cam
-    # camera.location = [0.8 * (camera_pos[0] + 10.0), camera_pos[1] - 10.0, camera_pos[2] + 3.0]
-
-    # front view
-    # camera.location = [camera_pos[0] + 7.5, camera_pos[1], camera_pos[2] + 1.0]
-
-    look_at_target = [camera_pos[0], camera_pos[1], camera_pos[2]]
-    point_camera_at_target(camera, look_at_target)
-
-    # keyframes
     camera.keyframe_insert(data_path="location", frame=frame_idx)
     camera.keyframe_insert(data_path="rotation_euler", frame=frame_idx)
-    return

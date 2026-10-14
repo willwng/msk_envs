@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "msk_envs"
+version = "0.1.0"
+description = "GPU RL environments for musculoskeletal simulation, built on Bolt"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+
+[tool.setuptools.packages.find]
+include = ["msk_envs*"]
+
+[tool.setuptools.package-data]
+msk_envs = ["msk_models/**/*"]

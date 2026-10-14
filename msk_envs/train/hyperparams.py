@@ -1,33 +1,37 @@
-from dataclasses import dataclass, asdict, fields, field
-from datetime import datetime
-from typing import Union
+"""
+Training CLI configs: one subcommand per task, which sets the task's env overrides and reward weights (lambda_*
+fields), plus the config of every algo (the one used is chosen with --algo).
+"""
 import os
 import sys
+from dataclasses import dataclass, fields, field
+from datetime import datetime
+from pathlib import Path
+from typing import Literal, Union
+
 import tyro
 from typing_extensions import Annotated
-from pathlib import Path
 
-from msk_envs.envs.env_config import EnvConfig, EnvConfigUnion
-from msk_envs.envs.env_variants import DerivedEnv
-from msk_envs.train.dep.dep_config import DEPConfig
-from msk_envs.train.sac.sac_config import SACConfig
-from msk_envs.train.td3.td3_config import TD3Config
-from msk_envs.train.qflex.qflex_config import QFlexConfig
-from msk_envs.train.qflex_ref.qflex_ref_config import QFlexRefConfig
-from msk_envs.train.ppo.ppo_config import PPOConfig
-from msk_envs.utils.train_utils import find_latest_checkpoint
+from msk_envs.envs.config import DerivedEnv, EnvConfig, EnvConfigUnion
+from msk_envs.train.common import print_config
+from msk_envs.train.ppo.config import PPOConfig
+from msk_envs.train.qflex.config import QFlexConfig
+from msk_envs.train.sac.config import SACConfig
+from msk_envs.train.td3.config import TD3Config
+from msk_envs.train.utils import find_latest_checkpoint
+
+ALGO_CONFIG_TITLES = {"td3": "TD3", "sac": "SAC", "qflex": "QFlex", "ppo": "PPO"}
 
 
 @dataclass
 class BaseArgs:
-    algo: str = "td3"
+    algo: Literal["td3", "sac", "qflex", "ppo"] = "td3"
     project: str = "msk_sprinter"
     exp_prefix: str = ""
     exp_name: str = ""
     disable_wandb: bool = False
     resume: bool = False
     override_wandb_config: bool = False
-    use_dep: bool = False
     seed: int = 1
     gpu_id: int = 0
 
@@ -35,9 +39,7 @@ class BaseArgs:
     td3_config: TD3Config = field(default_factory=TD3Config)
     sac_config: SACConfig = field(default_factory=SACConfig)
     qflex_config: QFlexConfig = field(default_factory=QFlexConfig)
-    qflex_ref_config: QFlexRefConfig = field(default_factory=QFlexRefConfig)
     ppo_config: PPOConfig = field(default_factory=PPOConfig)
-    dep_config: DEPConfig = field(default_factory=DEPConfig)
 
     def _apply_env_overrides(self, pose_name: str = None, **overrides):
         """
@@ -75,17 +77,14 @@ class BaseArgs:
         # Re-apply the command line changes on top of the overrides
         for key, user_cli_value in saved_cli_changes.items():
             setattr(self.env_config, key, user_cli_value)
-        return
 
     def __post_init__(self):
         if self.resume and self.exp_prefix:
             checkpoint_path, found_exp_name, global_step = find_latest_checkpoint(self.exp_prefix)
             if checkpoint_path:
                 self.exp_name = found_exp_name
-                if self.algo.lower() == "sac":
-                    self.sac_config.checkpoint_path = checkpoint_path
-                elif self.algo.lower() == "td3":
-                    self.td3_config.checkpoint_path = checkpoint_path
+                if self.algo in ["sac", "td3"]:
+                    algo_config(self).checkpoint_path = checkpoint_path
                 print(f"Resuming training from checkpoint: {checkpoint_path} at global_step={global_step}")
             else:
                 print(f"No checkpoint found for exp_prefix '{self.exp_prefix}'. Starting new training.")
@@ -98,54 +97,38 @@ class BaseArgs:
             date_name: str = datetime.now().strftime("%Y-%m-%d_%H-%M")
             self.exp_name = f"{self.exp_prefix}_{date_name}" if self.exp_prefix else date_name
 
-        self.traj_out_folder = f"dashboard/trajectories/{self.exp_name}"
-        self.analytics_out_folder = f"models/frame_data/{self.exp_name}"
-
         reward_lambdas = {k: v for k, v in self.__dict__.items() if k.startswith("lambda_")}
-        imitation_weights = {k: v for k, v in self.__dict__.items() if k.startswith("imitation_weight_")}
 
         self.env_config.reward_lambdas = reward_lambdas
-        self.env_config.imitation_weights = imitation_weights
+
+
+def algo_config(args: BaseArgs):
+    """ The config of the algo selected with --algo """
+    return getattr(args, f"{args.algo}_config")
 
 
 def pretty_print_base_args(args: BaseArgs):
-    args_dict = asdict(args)
-    base_field_names = [f.name for f in fields(BaseArgs)]
-    base_items = {k: args_dict.get(k) for k in base_field_names}
-    extra_items = {k: v for k, v in args_dict.items() if k not in base_items}
-
     line = "=" * 80
     print(line)
-    print(f"Experiment config: {args_dict.get('exp_name', '')}  "
-          f"(env_variant={args_dict.get('env_variant')})")
+    print(f"Experiment config: {args.exp_name}  (env_variant={args.env_config.env_variant})")
     print(line)
 
-    EnvConfig.pretty_print(args.env_config)
-    if args.algo.lower() == "sac":
-        SACConfig.pretty_print(args.sac_config)
-    elif args.algo.lower() == "td3":
-        TD3Config.pretty_print(args.td3_config)
-    elif args.algo.lower() == "qflex":
-        QFlexConfig.pretty_print(args.qflex_config)
-    elif args.algo.lower() == "qflex_ref":
-        QFlexRefConfig.pretty_print(args.qflex_ref_config)
-    elif args.algo.lower() == "ppo":
-        PPOConfig.pretty_print(args.ppo_config)
+    args.env_config.pretty_print()
+    print_config(algo_config(args), f"{ALGO_CONFIG_TITLES[args.algo]} Configuration")
 
+    config_fields = {"env_config"} | {f"{algo}_config" for algo in ALGO_CONFIG_TITLES}
+    base_field_names = [f.name for f in fields(BaseArgs) if f.name not in config_fields]
     print("BaseArgs:")
     for k in base_field_names:
-        if k in ["env_config", "td3_config"]:
-            continue
-        print(f"  {k:24} = {base_items[k]}")
+        print(f"  {k:24} = {getattr(args, k)}")
 
+    extra_items = {f.name: getattr(args, f.name) for f in fields(args) if f.name not in {f.name for f in fields(BaseArgs)}}
     if extra_items:
         print("-" * 80)
         print(f"{type(args).__name__} extras:")
         for k in sorted(extra_items.keys()):
             print(f"  {k:24} = {extra_items[k]}")
-
     print(line)
-    return
 
 
 @dataclass
@@ -309,24 +292,6 @@ class VerticalConfig(BaseArgs):
         )
 
 
-@dataclass
-class ImitateConfig(BaseArgs):
-    lambda_track_q: float = 0.0
-    lambda_track_u: float = 0.0
-    lambda_track_bp: float = 1e-1
-    lambda_track_mp: float = 1e-1
-
-    def __post_init__(self):
-        super().__post_init__()
-        self._apply_env_overrides(
-            env_variant=DerivedEnv.IMITATE,
-            delta_t=1.0 / 60.0,
-            apply_start_noise=False,
-            enforce_ground_contact=False,
-            default_activation=0.1,
-        )
-
-
 Config = Union[
     Annotated[SprintConfig, tyro.conf.subcommand(name="sprint")],
     Annotated[SprintBlockStartConfig, tyro.conf.subcommand(name="blockstart")],
@@ -339,7 +304,6 @@ Config = Union[
     Annotated[CariocaConfig, tyro.conf.subcommand(name="carioca")],
     Annotated[VerticalConfig, tyro.conf.subcommand(name="vertical")],
     Annotated[LocomotionConfig, tyro.conf.subcommand(name="locomotion")],
-    Annotated[ImitateConfig, tyro.conf.subcommand(name="imitate")],
 ]
 
 

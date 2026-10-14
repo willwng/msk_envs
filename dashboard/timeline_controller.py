@@ -2,6 +2,8 @@ from nicegui import ui
 
 
 class TimelineController:
+    """ Plays back a trajectory by advancing the timeline slider at [tick_rate] frames per second """
+
     def __init__(self, tick_rate: int, max_ticks: int, play_button, timeline_slider):
         # store ui elements
         self.play_button = play_button
@@ -18,7 +20,7 @@ class TimelineController:
             self.current_tick = min(self.current_tick + 1, self.max_ticks)
             self.timeline_slider.value = self.current_tick
 
-            # reached end, restart
+            # Reached the end: rewind to the start and stop
             if self.current_tick >= self.max_ticks:
                 self.current_tick = 0
                 self.timeline_slider.value = self.current_tick
