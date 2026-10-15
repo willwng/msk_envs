@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from msk_envs.train.nets.normalizers import SimNormLinear
 
 
 class DistributionalQNetwork(nn.Module):
@@ -14,9 +13,6 @@ class DistributionalQNetwork(nn.Module):
             v_min: float,
             v_max: float,
             hidden_dim: int,
-            sim_type: str,
-            sim_dimension: int,
-            seq_len: int,
             use_layer_norm: bool,
             device: torch.device,
     ):
@@ -30,23 +26,12 @@ class DistributionalQNetwork(nn.Module):
             nn.SiLU(),
         )
 
-        if sim_type in ["sim_both", "sim_critic"]:
-            self.fc_head = nn.Sequential(
-                SimNormLinear(
-                    hidden_dim // 2,
-                    seq_len=seq_len,
-                    simnorm_dim=sim_dimension,
-                    device=device,
-                ),
-                nn.Linear(seq_len * sim_dimension, num_atoms, device=device),
-            )
-        else:
-            self.fc_head = nn.Sequential(
-                nn.Linear(hidden_dim // 2, hidden_dim // 4, device=device),
-                nn.LayerNorm(hidden_dim // 4, device=device) if use_layer_norm else nn.Identity(),
-                nn.SiLU(),
-                nn.Linear(hidden_dim // 4, num_atoms, device=device),
-            )
+        self.fc_head = nn.Sequential(
+            nn.Linear(hidden_dim // 2, hidden_dim // 4, device=device),
+            nn.LayerNorm(hidden_dim // 4, device=device) if use_layer_norm else nn.Identity(),
+            nn.SiLU(),
+            nn.Linear(hidden_dim // 4, num_atoms, device=device),
+        )
 
         self.v_min = v_min
         self.v_max = v_max
@@ -117,9 +102,6 @@ class DistributionalCritic(nn.Module):
             hidden_dim: int,
             use_layer_norm: bool,
             device: torch.device,
-            sim_type: str = "",
-            sim_dimension: int = 64,
-            seq_len: int = 8,
             num_q_networks: int = 2,
     ):
         super().__init__()
@@ -129,9 +111,6 @@ class DistributionalCritic(nn.Module):
         self.num_atoms = num_atoms
         self.v_min = v_min
         self.v_max = v_max
-        self.sim_type = sim_type
-        self.sim_dimension = sim_dimension
-        self.seq_len = seq_len
         self.hidden_dim = hidden_dim
         self.use_layer_norm = use_layer_norm
         self.num_q_networks = num_q_networks
@@ -158,9 +137,6 @@ class DistributionalCritic(nn.Module):
                     v_min=self.v_min,
                     v_max=self.v_max,
                     hidden_dim=self.hidden_dim,
-                    sim_type=self.sim_type,
-                    seq_len=self.seq_len,
-                    sim_dimension=self.sim_dimension,
                     use_layer_norm=self.use_layer_norm,
                     device=self.device,
                 )

@@ -1,3 +1,0 @@
-[submodule "msk_envs/train/qflex_ref/Qflex"]
-	path = msk_envs/train/qflex_ref/Qflex
-	url = https://github.com/LNSGroup/Qflex.git

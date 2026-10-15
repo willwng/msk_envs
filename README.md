@@ -36,12 +36,13 @@ We provide visualization tools as well as scripts to generate analytics of traje
 </div>
 
 During training, every `eval_freq` steps, the training script will save a 
-checkpoint and a trajectory JSON. This trajectory can be visualized with 
-the web-viewer.
+checkpoint and a trajectory JSON (in `dashboard/trajectories/<experiment>`). These trajectories can be
+visualized with the web-viewer at http://localhost:8000:
 ```bash
-cd dashboard
-python3 dashboard.py
+python dashboard/dashboard.py
 ```
+Use `--traj-dir` to view trajectories elsewhere, `--port` to serve on another port, and `--geometry-dir` to point at
+Bolt's meshes when Bolt is not installed.
 
 #### Visualize from remote
 
@@ -53,20 +54,24 @@ sshfs remote_dir ./dashboard/remote_trajectories
 
 Then run the dashboard pointing to it
 ```bash
-cd dashboard
-python dashboard.py --traj-dir remote_trajectories
+python dashboard/dashboard.py --traj-dir dashboard/remote_trajectories
 ```
 
 ### Blender
-We include scripts for importing trajectories as Blender animations
+We include scripts for importing trajectories as Blender animations (this may take several minutes for long
+trajectories). From the command line:
 ```bash
-cd blender
-blender render_render.py
+blender -b -P blender/blender_render.py -- --traj <trajectory.json.gz> --geometry <bolt>/data/geometry --save scene.blend
 ```
-*Note: the paths at the top of the file will need to be updated*
+Options: `--camera side|olympic|front` and `--no-track`. Alternatively, open `blender/blender_render.py` in Blender's
+Scripting tab, set `TRAJ_PATH` and `GEOMETRY_PATH` at the top, and run it.
 
-Run the script in Blender (may take several minutes to load the trajectory). 
-The script will create a new scene with the animation.
+### Rollouts and analytics
+`scripts/rollout.py` records one episode (random actions, or a trained policy with `--checkpoint`) and saves its
+animation, frame data and analytics PDF. Task arguments are the same as for training:
+```bash
+python scripts/rollout.py --checkpoint models/<exp>/<exp>_<step>.pt sprint env-config:sprinter
+```
 
 ## License
 Several RL training scripts of this project are derived from third-party

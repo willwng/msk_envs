@@ -1,7 +1,6 @@
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class EmpiricalNormalization(nn.Module):
@@ -140,92 +139,7 @@ class RewardNormalizer(nn.Module):
         if dist.is_available() and dist.is_initialized():
             dist.all_reduce(local_max, op=dist.ReduceOp.MAX)
 
-        self.G_r_max = max(self.G_r_max, local_max)
+        self.G_r_max = torch.maximum(self.G_r_max, local_max)
 
     def forward(self, rewards: torch.Tensor) -> torch.Tensor:
         return self._scale_reward(rewards)
-
-
-class BatchRenorm1d(nn.Module):
-    """Batch Renormalization (Ioffe, 2017) over the feature dimension. """
-
-    def __init__(
-            self,
-            num_features: int,
-            eps: float = 1e-5,
-            momentum: float = 0.01,  # 1 - decay_rate, decay_rate = 0.99
-            r_max: float = 3.0,
-            d_max: float = 5.0,
-            warmup_steps: int = 10,
-    ):
-        super().__init__()
-        self.eps = eps
-        self.momentum = momentum
-        self.r_max = r_max
-        self.d_max = d_max
-        self.warmup_steps = warmup_steps
-
-        self.weight = nn.Parameter(torch.ones(num_features))
-        self.bias = nn.Parameter(torch.zeros(num_features))
-        self.register_buffer("running_mean", torch.zeros(num_features))
-        self.register_buffer("running_var", torch.ones(num_features))
-        self.register_buffer("num_batches_tracked", torch.zeros((), dtype=torch.long))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.training:
-            mean = x.mean(dim=0)
-            var = x.var(dim=0, unbiased=False)
-            std = torch.sqrt(var + self.eps)
-            running_std = torch.sqrt(self.running_var + self.eps)
-
-            # r and d are treated as constants (no gradient), as in BatchRenorm.
-            r = (std.detach() / running_std).clamp(1.0 / self.r_max, self.r_max)
-            d = ((mean.detach() - self.running_mean) / running_std).clamp(-self.d_max, self.d_max)
-
-            if self.num_batches_tracked.item() >= self.warmup_steps:
-                x_hat = (x - mean) / std * r + d
-            else:
-                x_hat = (x - mean) / std
-
-            # Update running statistics (simple EMA).
-            with torch.no_grad():
-                self.running_mean += self.momentum * (mean - self.running_mean)
-                self.running_var += self.momentum * (var - self.running_var)
-                self.num_batches_tracked += 1
-        else:
-            x_hat = (x - self.running_mean) / torch.sqrt(self.running_var + self.eps)
-
-        return self.weight * x_hat + self.bias
-
-
-class SimNorm(nn.Module):
-    """ Simplicial normalization: https://arxiv.org/abs/2204.00616. """
-
-    def __init__(self, seq_len=8, simnorm_dim=8):
-        super().__init__()
-        self.L = seq_len
-        self.dim = simnorm_dim
-
-    def forward(self, x):
-        shp = x.shape
-        x = x.view(*shp[:-1], self.L, self.dim)
-        x = F.softmax(x, dim=-1)
-        return x.view(*shp)
-
-
-class SimNormLinear(nn.Module):
-    def __init__(
-            self,
-            in_features: int,
-            seq_len: int,
-            simnorm_dim: int,
-            device: torch.device = None,
-    ):
-        super().__init__()
-        out_features = seq_len * simnorm_dim
-        self.linear = nn.Linear(in_features, out_features, device=device)
-        self.norm = nn.LayerNorm(out_features, device=device)
-        self.simnorm = SimNorm(seq_len, simnorm_dim)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.simnorm(self.norm(self.linear(x)))

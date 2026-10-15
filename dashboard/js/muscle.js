@@ -12,11 +12,11 @@ function activationToColor(activation) {
 
 function resetMuscles() {
     for (const key in muscleCache) {
-        const cached = muscleCache[key];
-        cached.forEach(muscle => {
+        muscleCache[key].forEach(muscle => {
             muscle.geometry.dispose();
             muscle.material.dispose();
         });
+        delete muscleCache[key];
     }
 }
 

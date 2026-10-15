@@ -4,6 +4,7 @@ import math
 
 
 def setup_track():
+    """ Build a standard 400m track (same dimensions as msk_envs/envs/curve.py), with lane markings and a billboard """
     # ==========================================
     # --- IAAF Track Dimensions (in meters) ---
     # ==========================================
@@ -431,7 +432,7 @@ def setup_track():
         tex_image = p_nodes.new(type="ShaderNodeTexImage")
 
         # USER_ACTION: This is the slot where you can load your custom image texture!
-        tex_image.image = bpy.data.images.load("siggraph.png")
+        tex_image.image = bpy.data.images.load("bolt.png")
 
         # Link image texture to base color
         p_links.new(tex_image.outputs['Color'], p_bsdf.inputs['Base Color'])
@@ -514,10 +515,5 @@ def setup_track():
         return obj_ad
 
     mat_ad_frame, mat_poster_surface = create_poster_material()
-    # 2. Generate the geometry and put it in the " markers_col " for better logical grouping,
-    # or a new col entirely. For now, track_col for logical geometry grouping.
-    ad_obj = create_poster_ad_geometry(track_col, mat_ad_frame, mat_poster_surface,
-                                       finish_x, straight_length, inner_radius, lane_width)
-
-
-setup_track()
+    create_poster_ad_geometry(track_col, mat_ad_frame, mat_poster_surface,
+                              finish_x, straight_length, inner_radius, lane_width)

@@ -9,17 +9,25 @@ from material import create_bone_material
 
 if not hasattr(bpy.ops.wm, 'obj_import') and not hasattr(bpy.ops.import_scene, 'obj'):
     bpy.ops.preferences.addon_enable(module="io_scene_obj")
-# Caching loaded obj files
-loaded_objs = {}
 
-# only create the bone material once
-bone_material = create_bone_material()
+loaded_objs = {}
+""" Imported objects, by (obj path, mesh id) """
+bone_material = None
+""" Shared by all visuals, created on first use """
+
+
+def get_bone_material():
+    global bone_material
+    if bone_material is None:
+        bone_material = create_bone_material()
+    return bone_material
 
 
 def import_obj(obj_path, identifier):
-    # Could add better support for .vtp files in the future
-    if "vtp" in obj_path:
-        obj_path = obj_path.replace("vtp", "obj")
+    # .vtp meshes are imported from the .obj next to them
+    root, ext = os.path.splitext(obj_path)
+    if ext == ".vtp":
+        obj_path = root + ".obj"
 
     # Cached
     key = (obj_path, identifier)
@@ -77,18 +85,17 @@ def update_visual(visual, frame_num, geometry_path):
 
         # Apply bone material
         if obj.data.materials:
-            obj.data.materials[0] = bone_material
+            obj.data.materials[0] = get_bone_material()
         else:
-            obj.data.materials.append(bone_material)
+            obj.data.materials.append(get_bone_material())
 
         # Insert keyframes
         obj.keyframe_insert(data_path="location", frame=frame_num)
         obj.keyframe_insert(data_path="rotation_quaternion", frame=frame_num)
         obj.keyframe_insert(data_path="scale", frame=frame_num)
-    return
 
 
 def clear_visual_cache():
     global loaded_objs, bone_material
     loaded_objs = {}
-    bone_material = create_bone_material()
+    bone_material = None

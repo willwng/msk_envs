@@ -17,18 +17,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById("viewer");
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    let width = container.clientWidth;
+    let height = container.clientHeight;
     let cameraViewMode = ViewMode.FULLSCREEN;
-    let aspect = (width / 3) / height;
-    let groundRotation = new THREE.Quaternion(0.0, 0.0, 0.0, 1.0);
 
     function updateCameras(com, footL, footR) {
         // backwards compatibility
         if (footL === undefined) footL = [com[0], com[1] - 1.0, com[2]];
         if (footR === undefined) footR = [com[0], com[1] - 1.0, com[2]];
 
-        // com[1] = 1.0; // fix for now
         if (autoFollow1) {
             cameras[0].position.set(com[0], com[1] + 0.5, com[2] + 2.25);
             controls[0].target.set(com[0], com[1], com[2]);
@@ -58,17 +55,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Frame loading
     let frames = [];
-    let currentObjects = [];
+    let currentObjects = [];  // in the scene for the current frame
+    let ownedObjects = [];  // created for the current frame only, disposed when it changes
     let staticObjects = [];
     let currentFrame = 0;
+    let frameGeneration = 0;  // incremented on every frame change, to drop meshes that finish loading too late
     let setupDone = false;
 
-    function loadFrame(frameIndex) {
-        // Clear scene
+    function addFrameObject(object, owned = true) {
+        scene.add(object);
+        currentObjects.push(object);
+        if (owned) ownedObjects.push(object);
+    }
+
+    function clearFrameObjects() {
+        frameGeneration++;
         currentObjects.forEach(obj => scene.remove(obj));
         currentObjects = [];
+        // Visuals share geometry/materials with the loader cache and muscles are reused across frames,
+        // so only dispose objects that were created for this frame
+        const materials = new Set();
+        ownedObjects.forEach(obj => obj.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) materials.add(child.material);
+        }));
+        materials.forEach(material => material.dispose());
+        ownedObjects = [];
+    }
 
-        // Load frame
+    function loadFrame(frameIndex) {
+        clearFrameObjects();
+        const generation = frameGeneration;
+
         const frame = frames[frameIndex];
         if (!frame) return;
 
@@ -93,15 +111,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 const color = 0xF1ECE4;
                 const mesh_url = `/geometry/${obj.mesh_file.split('/').pop()}`;
                 loadVisual(mesh_url, obj.opacity, color, object => {
+                    if (generation !== frameGeneration) return;  // the frame changed while the mesh loaded
                     object.scale.set(...obj.scale);
                     object.position.set(...obj.pos);
                     object.quaternion.set(obj.rot[0], obj.rot[1], obj.rot[2], obj.rot[3]);
-                    scene.add(object);
-                    currentObjects.push(object);
+                    addFrameObject(object, false);
                 });
             }
         }
-        if (drawBeams && frame.beam_points) {
+        if (drawBeams && frame.beam_points && frame.beam_points.length > 1) {  // models without beams have none
             const color = 0xF1ECE4;
             const points = [];
             for (const obj of frame.beam_points) {
@@ -110,15 +128,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const sphereMaterial = new THREE.MeshStandardMaterial({color: color});
                 const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
                 sphere.position.set(...obj.pos);
-                scene.add(sphere);
-                currentObjects.push(sphere);
+                addFrameObject(sphere);
             }
             const curve = new THREE.CatmullRomCurve3(points);
             const geometry = new THREE.TubeGeometry(curve, 100, 0.01, 8, false);
             const material = new THREE.MeshStandardMaterial({color: color});
-            const tube = new THREE.Mesh(geometry, material);
-            scene.add(tube);
-            currentObjects.push(tube);
+            addFrameObject(new THREE.Mesh(geometry, material));
         }
 
         for (const obj of frame.colliders) {
@@ -128,27 +143,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 color = inContact ? 0x6AEB9D : 0x87CEEB;
             }
             const drawAnyway = obj.name.includes("hurdle");
-            loadCollider(drawSphereColliders, drawCapsuleColliders | drawAnyway,
+            loadCollider(drawSphereColliders, drawCapsuleColliders || drawAnyway,
                 obj.geom_type, obj.scale, obj.rot, color, object => {
                     object.position.set(...obj.pos);
                     object.castShadow = true;
                     object.receiveShadow = true;
-                    scene.add(object);
-                    currentObjects.push(object);
+                    addFrameObject(object);
                 });
         }
 
         // Targets
         if (frame.targets) {
             for (const obj of frame.targets) {
-                let color = 0x87CEEB;
-                color = obj.active ? 0x6AEB9D : 0x87CEEB;
+                const color = obj.active ? 0x6AEB9D : 0x87CEEB;
                 loadTarget(obj.radius, obj.rot, color, object => {
                     object.position.set(...obj.pos);
                     object.castShadow = true;
                     object.receiveShadow = true;
-                    scene.add(object);
-                    currentObjects.push(object);
+                    addFrameObject(object);
                 });
             }
         }
@@ -156,13 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // Draw muscles
         const drawMuscles = drawMusclesCheckbox.checked;
         if (drawMuscles && frame.muscles) {
-            // add a point for
             for (const muscle of frame.muscles) {
-                // drawMuscleCapsule(muscle, object => {
-                drawMuscleLine(muscle.name, muscle, object => {
-                    scene.add(object);
-                    currentObjects.push(object);
-                });
+                drawMuscleLine(muscle.name, muscle, object => addFrameObject(object, false));
             }
         }
 
@@ -185,8 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const midpoint = origin.clone().add(dir.clone().multiplyScalar(cylinderLength / 2));
             cylinder.position.copy(midpoint);
             cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-            currentObjects.push(cylinder);
-            scene.add(cylinder);
+            addFrameObject(cylinder);
 
             // Create arrowhead (cone)
             const coneHeight = radius * 4;
@@ -198,8 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const conePosition = origin.clone().add(dir.clone().multiplyScalar(cylinderLength + coneHeight / 2));
             cone.position.copy(conePosition);
             cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-            currentObjects.push(cone);
-            scene.add(cone);
+            addFrameObject(cone);
         }
 
         currentFrame = frameIndex;
@@ -216,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let cameras = [];
     let controls = [];
     for (let i = 0; i < 5; i++) {
-        const cam = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+        const cam = new THREE.PerspectiveCamera(75, (width / 3) / height, 0.1, 1000);
         const control = new OrbitControls(cam, renderer.domElement);
         cam.up.set(0, 1, 0);
 
@@ -286,8 +291,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener("resetViewer", function (event) {
         frames = [];
-        currentObjects.forEach(obj => scene.remove(obj));
-        currentObjects = [];
+        clearFrameObjects();
         staticObjects.forEach(obj => scene.remove(obj));
         staticObjects = [];
         currentFrame = 0;
@@ -304,7 +308,11 @@ document.addEventListener("DOMContentLoaded", () => {
         cameraViewMode = viewModes[nextIndex];
         let nextMode = viewModes[nextNextIndex];
         fullScreen.textContent = String(nextMode.label);
-        // update camera aspect
+        updateCameraAspects();
+        loadFrame(currentFrame);
+    });
+
+    function updateCameraAspects() {
         if (cameraViewMode === ViewMode.FULLSCREEN) {
             cameras[0].aspect = width / height;
             cameras[0].updateProjectionMatrix();
@@ -322,7 +330,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 cameras[i].updateProjectionMatrix();
             }
         }
-        loadFrame(currentFrame);
+    }
+
+    window.addEventListener("resize", () => {
+        width = container.clientWidth;
+        height = container.clientHeight;
+        renderer.setSize(width, height);
+        updateCameraAspects();
     });
 
     controls[0].addEventListener("start", () => {

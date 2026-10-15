@@ -124,104 +124,6 @@ left_foot_7:
   viscous_friction: 0.0
   transition_velocity: 0.1
 
-# DHondt contact model settings
-heel_r:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-lateralRearfoot_r:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-lateralMidfoot_r:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-lateralToe_r:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-medialToe_r:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-medialMidfoot_r:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-heel_l:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-lateralRearfoot_l:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-lateralMidfoot_l:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-lateralToe_l:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-medialToe_l:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-medialMidfoot_l:
-  stiffness: 1000000.0
-  dissipation: 2.0
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.5
-  transition_velocity: 0.2
-  priority: 1
-
 pelvis_capsule:
   stiffness: 5e6
   dissipation: 1.0
@@ -280,30 +182,6 @@ lumbar_spine_capsule1:
   dynamic_friction: 0.8
   viscous_friction: 0.0
   transition_velocity: 0.1
-lumbar_spine_capsule2:
-  stiffness: 5e6
-  dissipation: 1.0
-  priority: 2
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.0
-  transition_velocity: 0.1
-thorax_capsule1:
-  stiffness: 5e6
-  dissipation: 1.0
-  priority: 2
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.0
-  transition_velocity: 0.1
-thorax_capsule2:
-  stiffness: 5e6
-  dissipation: 1.0
-  priority: 2
-  static_friction: 0.8
-  dynamic_friction: 0.8
-  viscous_friction: 0.0
-  transition_velocity: 0.1
 head:
   stiffness: 5e6
   dissipation: 1.0
@@ -338,22 +216,6 @@ ulna_r_capsule:
   viscous_friction: 0.0
   transition_velocity: 0.1
 ulna_l_capsule:
-  stiffness: 5e6
-  dissipation: 1.0
-  priority: 3
-  static_friction: 0.1
-  dynamic_friction: 0.0
-  viscous_friction: 0.0
-  transition_velocity: 0.1
-hand_r:
-  stiffness: 5e6
-  dissipation: 1.0
-  priority: 3
-  static_friction: 0.1
-  dynamic_friction: 0.0
-  viscous_friction: 0.0
-  transition_velocity: 0.1
-hand_l:
   stiffness: 5e6
   dissipation: 1.0
   priority: 3

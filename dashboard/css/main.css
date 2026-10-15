@@ -42,12 +42,3 @@ label {
     font-weight: bold;
     margin-right: 1px;
 }
-#tickRate {
-    width: 50px;
-    padding: 1px;
-}
-.frame-info {
-    font-size: 14px;
-    color: #666;
-    margin: 5px 0;
-}
