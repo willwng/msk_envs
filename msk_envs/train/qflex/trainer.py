@@ -8,6 +8,7 @@ from msk_envs.train.common import module_state, save_checkpoint
 from msk_envs.train.off_policy import OffPolicyTrainer
 from msk_envs.train.nets.crossq_critic import CrossQCritic
 from msk_envs.train.nets.normalizers import EmpiricalNormalization
+from msk_envs.train.nets.optimizer import make_optimizer
 from msk_envs.train.nets.qflex_networks import ReferencePolicy, QFlexActor, VelocityField
 from .config import QFlexConfig
 
@@ -58,13 +59,15 @@ class QFlexTrainer(OffPolicyTrainer):
             action_high=self.action_high,
         ).to(device)
 
-        def adamw(params, weight_decay=cfg.weight_decay):
-            return optim.AdamW(params, lr=cfg.learning_rate, betas=cfg.betas, weight_decay=weight_decay)
+        def network_optimizer(module):
+            return make_optimizer(module, lr=cfg.learning_rate, betas=cfg.betas, weight_decay=cfg.weight_decay,
+                                  optimizer=cfg.optimizer, fused=False)
 
-        self.q_optimizer = adamw(list(self.critic.parameters()))
-        self.ref_optimizer = adamw(list(self.reference.parameters()))
-        self.vel_optimizer = adamw(list(self.velocity_field.parameters()))
-        self.alpha_optimizer = adamw([self.log_alpha], weight_decay=0.0)  # no decay of the entropy temperature
+        self.q_optimizer = network_optimizer(self.critic)
+        self.ref_optimizer = network_optimizer(self.reference)
+        self.vel_optimizer = network_optimizer(self.velocity_field)
+        # no decay of the entropy temperature
+        self.alpha_optimizer = optim.AdamW([self.log_alpha], lr=cfg.learning_rate, betas=cfg.betas, weight_decay=0.0)
 
         if cfg.obs_normalization:
             self.obs_normalizer = EmpiricalNormalization(shape=n_obs, device=device)

@@ -59,16 +59,18 @@ class TD3Trainer(OffPolicyTrainer):
         self.qnet_target.load_state_dict(self.qnet.state_dict())
 
         self.q_optimizer = make_optimizer(
-            model=self.qnet,
+            self.qnet,
             lr=cfg.critic_learning_rate,
             betas=(0.9, 0.95),
             weight_decay=cfg.weight_decay,
+            optimizer=cfg.optimizer,
         )
         self.actor_optimizer = make_optimizer(
-            model=self.actor,
+            self.actor,
             lr=cfg.actor_learning_rate,
             betas=(0.9, 0.95),
             weight_decay=cfg.weight_decay,
+            optimizer=cfg.optimizer,
         )
         self.q_scheduler = optim.lr_scheduler.CosineAnnealingLR(
             self.q_optimizer,

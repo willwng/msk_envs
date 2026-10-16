@@ -53,19 +53,17 @@ class RolloutStorage:
 
     @torch.no_grad()
     def compute_returns(self, last_values: torch.Tensor, gamma: float, lam: float):
-        """Generalized Advantage Estimation (truncations treated as done).
-
-        Advantages are normalized once over the whole rollout
-        """
+        """ Generalized Advantage Estimation (truncations treated as done; see the trainer's truncation bootstrap).
+        Advantages are normalized once over the whole rollout """
         advantage = torch.zeros(self.num_envs, device=self.device)
         for t in reversed(range(self.num_steps)):
             next_values = last_values if t == self.num_steps - 1 else self.values[t + 1]
             next_not_terminal = 1.0 - self.dones[t]
             delta = self.rewards[t] + gamma * next_values * next_not_terminal - self.values[t]
             advantage = delta + gamma * lam * next_not_terminal * advantage
-            self.returns[t] = advantage + self.values[t]
-        advantages = self.returns - self.values
-        self.advantages.copy_((advantages - advantages.mean()) / (advantages.std() + 1e-8))
+            self.advantages[t] = advantage
+        self.returns.copy_(self.advantages + self.values)
+        self.advantages.copy_((self.advantages - self.advantages.mean()) / (self.advantages.std() + 1e-8))
 
     def mini_batch_generator(self, num_mini_batches: int, num_epochs: int):
         batch_size = self.num_steps * self.num_envs

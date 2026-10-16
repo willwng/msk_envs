@@ -1,8 +1,8 @@
 """
 Inference policies (observations -> actions) from training checkpoints, for TD3, SAC and PPO.
 
-    policy = load_policy("models/<exp>/<exp>_<step>.pt")
-    actions = policy(obs)
+    policy = load_policy("models/<exp>/<exp>_<step>.pt")  # deterministic=True for the mean action
+    actions = policy(obs)  # sampled, for the stochastic policies (SAC, PPO)
 """
 import torch
 import torch.nn as nn
@@ -14,23 +14,34 @@ from msk_envs.train.nets.ppo_networks import PPOActor
 
 
 class InferencePolicy(nn.Module):
-    """ An actor with the observation normalizer it was trained with, in eval mode """
+    """
+    An actor with the observation normalizer it was trained with, in eval mode. Stochastic policies (SAC, PPO) sample
+    actions unless [deterministic], in which case they use the mean; TD3's policy is deterministic.
+    """
 
-    def __init__(self, actor: nn.Module, obs_normalizer: nn.Module, algo: str):
+    def __init__(self, actor: nn.Module, obs_normalizer: nn.Module, algo: str, deterministic: bool = False,
+                 obs_clip: float | None = None):
         super().__init__()
         self.actor = actor
         self.obs_normalizer = obs_normalizer
         self.algo = algo
+        self.deterministic = deterministic
+        self.obs_clip = obs_clip
         self.eval()
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        output = self.actor(self.obs_normalizer(obs))
-        # SAC's actor returns (action, mean, log_std); TD3's and PPO's return the action (PPO: distribution mean)
-        return output[0] if self.algo == "sac" else output
+        x = self.obs_normalizer(obs)
+        if self.obs_clip is not None:
+            x = x.clamp(-self.obs_clip, self.obs_clip)
+        if self.algo == "sac":
+            return self.actor.explore(x, deterministic=self.deterministic)
+        if self.algo == "ppo" and not self.deterministic:
+            return self.actor.act_inference(x)
+        return self.actor(x)
 
 
 def _detect_algo(actor_state: dict) -> str:
-    if "std" in actor_state:
+    if "log_std" in actor_state:
         return "ppo"
     if "fc_logstd.weight" in actor_state:
         return "sac"
@@ -67,19 +78,17 @@ def _build_actor(algo: str, actor_state: dict, args: dict) -> nn.Module:
         )
     return PPOActor(
         n_obs=actor_state["actor.0.weight"].shape[-1],
-        n_act=actor_state["std"].shape[0],
-        hidden_dims=list(args.get("hidden_dims", [512, 256, 128])),
-        init_noise_std=args.get("init_noise_std", 0.8),
-        activation=args.get("activation", "ELU"),
-        dropout_prob=args.get("dropout_prob", 0.0),
-        use_layer_norm=args.get("use_layer_norm", False),
-        min_noise_std=args.get("min_noise_std", None),
-        min_mean_noise_std=args.get("min_mean_noise_std", None),
+        n_act=actor_state["log_std"].shape[0],
+        hidden_dims=list(args["actor_hidden_dims"]),
+        init_std=args["init_std"],
+        learnable_std=args["learnable_std"],
+        activation=args["activation"],
+        use_layer_norm=args["use_layer_norm"],
         device="cpu",
     )
 
 
-def policy_from_checkpoint(checkpoint: dict) -> InferencePolicy:
+def policy_from_checkpoint(checkpoint: dict, deterministic: bool = False) -> InferencePolicy:
     """
     Inference policy (on the CPU) from a checkpoint's "args" (training config), "actor_state_dict" and
     "obs_normalizer_state", e.g. a loaded checkpoint file or a trainer's current state
@@ -89,14 +98,20 @@ def policy_from_checkpoint(checkpoint: dict) -> InferencePolicy:
     actor = _build_actor(algo, actor_state, checkpoint["args"])
     actor.load_state_dict(actor_state)
 
+    # Normalize as in training (defaults match configs without these options, e.g. TD3 / SAC and older PPO runs)
+    args = checkpoint["args"]
     normalizer_state = checkpoint["obs_normalizer_state"]
+    obs_clip = None
     if not normalizer_state:  # trained without observation normalization
         obs_normalizer = nn.Identity()
     else:
-        obs_normalizer = EmpiricalNormalization(shape=normalizer_state["_mean"].shape[-1], device="cpu")
+        obs_normalizer = EmpiricalNormalization(shape=normalizer_state["_mean"].shape[-1], device="cpu",
+                                                eps=args.get("obs_norm_eps", 1e-2))
         obs_normalizer.load_state_dict(normalizer_state)
-    return InferencePolicy(actor, obs_normalizer, algo)
+        obs_clip = args.get("obs_norm_clip", None)
+    return InferencePolicy(actor, obs_normalizer, algo, deterministic=deterministic, obs_clip=obs_clip)
 
 
-def load_policy(checkpoint_path: str) -> InferencePolicy:
-    return policy_from_checkpoint(torch.load(checkpoint_path, map_location="cpu", weights_only=False))
+def load_policy(checkpoint_path: str, deterministic: bool = False) -> InferencePolicy:
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    return policy_from_checkpoint(checkpoint, deterministic=deterministic)

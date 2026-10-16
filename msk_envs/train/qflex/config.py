@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass
@@ -13,6 +14,9 @@ class QFlexConfig:
     """learning rate"""
     betas: tuple[float, float] = (0.5, 0.999)
     """Adam betas"""
+    optimizer: Literal["adamw", "muon"] = "adamw"
+    """adamw, or muon: Muon for weight matrices and AdamW for the other parameters"""
+
     weight_decay: float = 0.0
     """weight decay"""
 
