@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass
@@ -95,6 +96,9 @@ class SACConfig:
 
     amp_dtype: str = "bf16"
     """the dtype of the amp"""
+
+    optimizer: Literal["adamw", "muon"] = "adamw"
+    """adamw, or muon: Muon for weight matrices and AdamW for the other parameters"""
 
     weight_decay: float = 0.001
     """the weight decay of the optimizer"""

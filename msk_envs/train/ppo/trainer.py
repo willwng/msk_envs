@@ -6,30 +6,11 @@ from loguru import logger
 from msk_envs.envs.base import MSKEnv
 from msk_envs.train.common import RunPaths, evaluate_policy, make_logging_helper, module_state, save_checkpoint
 from msk_envs.train.nets.normalizers import EmpiricalNormalization, RewardNormalizer
-from msk_envs.train.nets.optimizer import BatchedMuon
+from msk_envs.train.nets.optimizer import make_optimizer
 from msk_envs.train.nets.ppo_networks import PPOActor, PPOCritic
 from msk_envs.train.utils import TensorAverageMeterDict, mark_step
 from .config import PPOConfig
 from .rollout_storage import RolloutStorage
-
-
-def make_optimizers(params: list[nn.Parameter], cfg: PPOConfig) -> list[torch.optim.Optimizer]:
-    """ Muon for the weight matrices and AdamW for everything else (biases, LayerNorm, log std), or AdamW for all """
-    adamw_kwargs = dict(lr=cfg.learning_rate, eps=1e-5, weight_decay=cfg.weight_decay)
-    if cfg.optimizer == "adamw":
-        return [torch.optim.AdamW(params, **adamw_kwargs)]
-    matrices = [p for p in params if p.ndim == 2]
-    others = [p for p in params if p.ndim != 2]
-    muon = BatchedMuon(
-        matrices,
-        lr=cfg.learning_rate,
-        weight_decay=cfg.weight_decay,
-        momentum=cfg.muon_momentum,
-        nesterov=cfg.muon_nesterov,
-        ns_steps=cfg.muon_ns_steps,
-        adjust_lr_fn="match_rms_adamw",  # update RMS comparable to AdamW, so both share the learning rate
-    )
-    return [muon, torch.optim.AdamW(others, **adamw_kwargs)]
 
 
 class PPOTrainer:
@@ -69,7 +50,11 @@ class PPOTrainer:
             device=device,
         )
         self.params = [*self.actor.parameters(), *self.critic.parameters()]
-        self.optimizers = make_optimizers(self.params, cfg)
+        # musclemimic: Muon for the weight matrices and AdamW (eps 1e-5) for the rest, or AdamW for all
+        self.optimizer = make_optimizer(
+            self.params, lr=cfg.learning_rate, betas=(0.9, 0.999), weight_decay=cfg.weight_decay,
+            optimizer=cfg.optimizer, eps=1e-5, fused=False, muon_momentum=cfg.muon_momentum,
+            muon_nesterov=cfg.muon_nesterov, muon_ns_steps=cfg.muon_ns_steps)
         self.lr = cfg.learning_rate
 
         self.obs_normalizer = EmpiricalNormalization(shape=n_obs, device=device) if cfg.obs_normalization \
@@ -127,14 +112,12 @@ class PPOTrainer:
     def update(self, data):
         total_loss, surrogate_loss, value_loss, entropy, kl, clip_fraction = self._compute_losses(data)
 
-        for optimizer in self.optimizers:
-            optimizer.zero_grad(set_to_none=True)
+        self.optimizer.zero_grad(set_to_none=True)
         total_loss.backward()
         max_norm = self.cfg.max_grad_norm if self.cfg.max_grad_norm > 0 else float("inf")
         grad_norm = nn.utils.clip_grad_norm_(self.params, max_norm)
         if torch.isfinite(grad_norm):  # skip updates with non-finite gradients
-            for optimizer in self.optimizers:
-                optimizer.step()
+            self.optimizer.step()
 
         return {
             "surrogate_loss": surrogate_loss.detach(),
@@ -148,9 +131,8 @@ class PPOTrainer:
 
     def set_learning_rate(self, lr: float) -> None:
         self.lr = lr
-        for optimizer in self.optimizers:
-            for group in optimizer.param_groups:
-                group["lr"] = lr
+        for group in self.optimizer.param_groups:
+            group["lr"] = lr
 
     def adapt_learning_rate(self, mean_kl: float) -> None:
         """ Adaptive schedule: lower the learning rate when the update's mean KL is above twice the target, raise it
@@ -174,7 +156,7 @@ class PPOTrainer:
             "actor_state_dict": module_state(self.actor),
             "critic_state_dict": module_state(self.critic),
             "obs_normalizer_state": module_state(self.obs_normalizer),
-            "optimizer_state_dicts": [optimizer.state_dict() for optimizer in self.optimizers],
+            "optimizer_state_dict": self.optimizer.state_dict(),
         }
         save_checkpoint(path, self.global_step, self.cfg, state)
 
@@ -183,8 +165,7 @@ class PPOTrainer:
         self.actor.load_state_dict(checkpoint["actor_state_dict"])
         self.critic.load_state_dict(checkpoint["critic_state_dict"])
         self.obs_normalizer.load_state_dict(checkpoint["obs_normalizer_state"])
-        for optimizer, state in zip(self.optimizers, checkpoint["optimizer_state_dicts"]):
-            optimizer.load_state_dict(state)
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         return checkpoint.get("global_step", 0)
 
     def train(self) -> None:

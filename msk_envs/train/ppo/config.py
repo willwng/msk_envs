@@ -83,7 +83,7 @@ class PPOConfig:
     use_layer_norm: bool = True
     """whether to apply LayerNorm after each hidden linear layer"""
 
-    init_std: float = 6.0
+    init_std: float = 3.0
     """initial standard deviation of the action noise"""
 
     learnable_std: bool = True
