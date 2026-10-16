@@ -1,47 +1,55 @@
 from dataclasses import dataclass, field
+from typing import Literal
 
 
 @dataclass
 class PPOConfig:
-    num_envs: int = 4096
+    """ Defaults follow musclemimic's fullbody setup (fullbody/conf_fullbody.yaml) """
+
+    num_envs: int = 8192
     """number of parallel environments"""
 
-    num_learning_iterations: int = 1000000
-    """total number of policy-update iterations (each collects a full rollout)"""
+    num_learning_iterations: int = 12500
+    """number of policy updates (each collects a rollout of num_envs x num_steps_per_env steps)"""
 
-    num_steps_per_env: int = 24
+    num_steps_per_env: int = 20
     """number of environment steps collected per env per rollout"""
 
-    num_learning_epochs: int = 8
-    """number of passes over the collected rollout per iteration"""
+    num_learning_epochs: int = 1
+    """number of passes over the collected rollout per update"""
 
-    num_mini_batches: int = 4
+    num_mini_batches: int = 128
     """number of minibatches the rollout is split into per epoch"""
 
     # ------------------------------------------------------------------ optim
-    actor_learning_rate: float = 1e-5
-    """the learning rate of the actor"""
+    learning_rate: float = 4e-4
+    """the learning rate (one optimizer for the actor and critic)"""
 
-    critic_learning_rate: float = 1e-5
-    """the learning rate of the critic"""
-
-    max_actor_learning_rate: float | None = None
-    """upper bound for the adaptive actor learning rate (None -> 1e-2)"""
-
-    min_actor_learning_rate: float | None = None
-    """lower bound for the adaptive actor learning rate (None -> 1e-5)"""
-
-    max_critic_learning_rate: float | None = None
-    """upper bound for the adaptive critic learning rate (None -> 1e-2)"""
-
-    min_critic_learning_rate: float | None = None
-    """lower bound for the adaptive critic learning rate (None -> 1e-5)"""
-
-    schedule: str = "adaptive"
-    """learning-rate schedule: 'adaptive' (KL based) or 'fixed'"""
+    schedule: Literal["linear", "fixed", "adaptive"] = "linear"
+    """learning-rate schedule: linear decay to 0 over training, constant, or KL-adaptive"""
 
     desired_kl: float = 0.01
-    """target KL divergence used by the adaptive schedule"""
+    """target KL divergence for the adaptive schedule"""
+
+    min_learning_rate: float = 1e-5
+    """lower bound for the adaptive learning rate"""
+
+    max_learning_rate: float = 1e-2
+    """upper bound for the adaptive learning rate"""
+
+    optimizer: Literal["muon", "adamw"] = "muon"
+    """muon: Muon for weight matrices and AdamW for the other parameters; adamw: AdamW for all"""
+
+    muon_momentum: float = 0.95
+    muon_nesterov: bool = True
+    muon_ns_steps: int = 5
+    """number of Newton-Schulz iterations"""
+
+    weight_decay: float = 0.0
+    """weight decay for all optimizers"""
+
+    max_grad_norm: float = 1.0
+    """maximum global gradient norm over the actor and critic (<= 0 disables clipping)"""
 
     # ------------------------------------------------------------- ppo losses
     gamma: float = 0.99
@@ -51,43 +59,44 @@ class PPOConfig:
     """the GAE lambda"""
 
     clip_param: float = 0.2
-    """the PPO surrogate (and value) clipping coefficient"""
+    """the PPO surrogate clipping coefficient"""
 
-    entropy_coef: float = 0.01
+    value_clip_param: float = 0.2
+    """the value function clipping coefficient"""
+
+    entropy_coef: float = 0.0
     """coefficient of the entropy bonus"""
 
-    value_loss_coef: float = 1.0
-    """coefficient of the value loss"""
-
-    max_grad_norm: float = 1.0
-    """maximum gradient norm for clipping (<= 0 disables)"""
+    value_loss_coef: float = 0.5
+    """coefficient of the value loss (which is 0.5 * squared error)"""
 
     # ------------------------------------------------------------- networks
-    hidden_dims: list[int] = field(default_factory=lambda: [512, 256, 128])
-    """hidden layer sizes shared by the actor and critic MLPs"""
+    actor_hidden_dims: list[int] = field(default_factory=lambda: [1024] * 16)
+    """hidden layer sizes of the actor MLP"""
 
-    activation: str = "ELU"
-    """activation function (name of a torch.nn module, e.g. 'ELU')"""
+    critic_hidden_dims: list[int] = field(default_factory=lambda: [1024] * 16)
+    """hidden layer sizes of the critic MLP"""
 
-    use_layer_norm: bool = False
-    """whether to use layer normalization in the networks"""
+    activation: str = "SiLU"
+    """activation function (name of a torch.nn module)"""
 
-    dropout_prob: float = 0.0
-    """dropout probability between hidden layers (0 disables)"""
+    use_layer_norm: bool = True
+    """whether to apply LayerNorm after each hidden linear layer"""
 
-    init_noise_std: float = 0.8
-    """initial standard deviation of the (state-independent) action noise"""
+    init_std: float = 6.0
+    """initial standard deviation of the action noise"""
 
-    min_noise_std: float | None = None
-    """if set, clamp the action std to this minimum value"""
+    learnable_std: bool = True
+    """whether the action noise standard deviation is learned"""
 
-    min_mean_noise_std: float | None = None
-    """if set, scale std up when its mean falls below this threshold"""
+    # ------------------------------------------------------------ normalization
+    obs_normalization: bool = True
+    """whether to normalize observations by running mean/variance"""
+
+    reward_normalization: bool = True
+    """whether to scale rewards by the running std of the discounted return"""
 
     # ------------------------------------------------------------ misc/train
-    empirical_normalization: bool = False
-    """whether to normalize observations with running empirical statistics"""
-
     compile: bool = False
     """whether to torch.compile the loss computation"""
     compile_mode: str | None = None

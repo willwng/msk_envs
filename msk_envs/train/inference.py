@@ -30,7 +30,7 @@ class InferencePolicy(nn.Module):
 
 
 def _detect_algo(actor_state: dict) -> str:
-    if "std" in actor_state:
+    if "log_std" in actor_state:
         return "ppo"
     if "fc_logstd.weight" in actor_state:
         return "sac"
@@ -67,14 +67,12 @@ def _build_actor(algo: str, actor_state: dict, args: dict) -> nn.Module:
         )
     return PPOActor(
         n_obs=actor_state["actor.0.weight"].shape[-1],
-        n_act=actor_state["std"].shape[0],
-        hidden_dims=list(args.get("hidden_dims", [512, 256, 128])),
-        init_noise_std=args.get("init_noise_std", 0.8),
-        activation=args.get("activation", "ELU"),
-        dropout_prob=args.get("dropout_prob", 0.0),
-        use_layer_norm=args.get("use_layer_norm", False),
-        min_noise_std=args.get("min_noise_std", None),
-        min_mean_noise_std=args.get("min_mean_noise_std", None),
+        n_act=actor_state["log_std"].shape[0],
+        hidden_dims=list(args["actor_hidden_dims"]),
+        init_std=args["init_std"],
+        learnable_std=args["learnable_std"],
+        activation=args["activation"],
+        use_layer_norm=args["use_layer_norm"],
         device="cpu",
     )
 
