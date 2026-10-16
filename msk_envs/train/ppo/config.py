@@ -105,7 +105,7 @@ class PPOConfig:
     save_interval: int = 100
     """the interval (in iterations) to save the model"""
 
-    logging_interval: int = 1
+    logging_interval: int = 5
     """the interval (in iterations) to log the metrics"""
 
     checkpoint_path: str = ""

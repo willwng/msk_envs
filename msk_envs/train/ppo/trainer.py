@@ -6,6 +6,7 @@ from loguru import logger
 from msk_envs.envs.base import MSKEnv
 from msk_envs.train.common import RunPaths, evaluate_policy, make_logging_helper, module_state, save_checkpoint
 from msk_envs.train.nets.normalizers import EmpiricalNormalization, RewardNormalizer
+from msk_envs.train.nets.optimizer import BatchedMuon
 from msk_envs.train.nets.ppo_networks import PPOActor, PPOCritic
 from msk_envs.train.utils import TensorAverageMeterDict, mark_step
 from .config import PPOConfig
@@ -17,11 +18,9 @@ def make_optimizers(params: list[nn.Parameter], cfg: PPOConfig) -> list[torch.op
     adamw_kwargs = dict(lr=cfg.learning_rate, eps=1e-5, weight_decay=cfg.weight_decay)
     if cfg.optimizer == "adamw":
         return [torch.optim.AdamW(params, **adamw_kwargs)]
-    if not hasattr(torch.optim, "Muon"):
-        raise RuntimeError("torch.optim.Muon needs PyTorch >= 2.9; use --ppo-config.optimizer adamw")
     matrices = [p for p in params if p.ndim == 2]
     others = [p for p in params if p.ndim != 2]
-    muon = torch.optim.Muon(
+    muon = BatchedMuon(
         matrices,
         lr=cfg.learning_rate,
         weight_decay=cfg.weight_decay,
