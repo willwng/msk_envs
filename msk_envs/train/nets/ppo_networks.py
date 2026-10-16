@@ -69,16 +69,16 @@ class PPOActor(nn.Module):
         return Normal(mean, self.log_std.exp().expand_as(mean))
 
     @torch.no_grad()
-    def act(self, obs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """ Sample an action; returns (action, log_prob) """
+    def act(self, obs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """ Sample an action; returns (action, log_prob, mean, std) """
         dist = self.distribution(obs)
         action = dist.sample()
-        return action, dist.log_prob(action).sum(dim=-1)
+        return action, dist.log_prob(action).sum(dim=-1), dist.mean, dist.stddev
 
-    def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """ Re-evaluate stored actions; returns (log_prob, entropy) """
+    def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor):
+        """ Re-evaluate stored actions; returns (log_prob, entropy, mean, std) """
         dist = self.distribution(obs)
-        return dist.log_prob(actions).sum(dim=-1), dist.entropy().sum(dim=-1)
+        return dist.log_prob(actions).sum(dim=-1), dist.entropy().sum(dim=-1), dist.mean, dist.stddev
 
     def act_inference(self, obs: torch.Tensor) -> torch.Tensor:
         """ Sampled action, as used for evaluation """

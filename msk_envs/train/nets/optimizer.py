@@ -18,16 +18,18 @@ def make_optimizer(
         muon_momentum: float = 0.95,
         muon_nesterov: bool = True,
         muon_ns_steps: int = 5,
+        muon_adjust_lr_fn: Literal["original", "match_rms_adamw"] = "match_rms_adamw",
 ) -> optim.Optimizer:
     """
-    AdamW over all parameters, or Muon for the weight matrices and AdamW (same lr, betas, eps, weight decay) for the
-    rest. Muon's learning rate is scaled to match AdamW's update size, so AdamW-tuned learning rates carry over.
+    AdamW over all parameters, or Muon for weight matrices and AdamW (same lr, betas, eps, weight decay) for the rest.
+    With muon_adjust_lr_fn="match_rms_adamw", Muon's learning rate is scaled to match AdamW's update size
+    With "original" the optax default is used
     """
     params = list(params.parameters() if isinstance(params, nn.Module) else params)
     if optimizer == "adamw":
         return optim.AdamW(params, lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, fused=fused or None)
     return MuonAdamW(params, lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, momentum=muon_momentum,
-                     nesterov=muon_nesterov, ns_steps=muon_ns_steps, adjust_lr_fn="match_rms_adamw")
+                     nesterov=muon_nesterov, ns_steps=muon_ns_steps, adjust_lr_fn=muon_adjust_lr_fn)
 
 
 def _adjust_lr(lr: float, adjust_lr_fn: str | None, shape: torch.Size) -> float:

@@ -19,16 +19,20 @@ class InferencePolicy(nn.Module):
     actions unless [deterministic], in which case they use the mean; TD3's policy is deterministic.
     """
 
-    def __init__(self, actor: nn.Module, obs_normalizer: nn.Module, algo: str, deterministic: bool = False):
+    def __init__(self, actor: nn.Module, obs_normalizer: nn.Module, algo: str, deterministic: bool = False,
+                 obs_clip: float | None = None):
         super().__init__()
         self.actor = actor
         self.obs_normalizer = obs_normalizer
         self.algo = algo
         self.deterministic = deterministic
+        self.obs_clip = obs_clip
         self.eval()
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         x = self.obs_normalizer(obs)
+        if self.obs_clip is not None:
+            x = x.clamp(-self.obs_clip, self.obs_clip)
         if self.algo == "sac":
             return self.actor.explore(x, deterministic=self.deterministic)
         if self.algo == "ppo" and not self.deterministic:
@@ -94,13 +98,18 @@ def policy_from_checkpoint(checkpoint: dict, deterministic: bool = False) -> Inf
     actor = _build_actor(algo, actor_state, checkpoint["args"])
     actor.load_state_dict(actor_state)
 
+    # Normalize as in training (defaults match configs without these options, e.g. TD3 / SAC and older PPO runs)
+    args = checkpoint["args"]
     normalizer_state = checkpoint["obs_normalizer_state"]
+    obs_clip = None
     if not normalizer_state:  # trained without observation normalization
         obs_normalizer = nn.Identity()
     else:
-        obs_normalizer = EmpiricalNormalization(shape=normalizer_state["_mean"].shape[-1], device="cpu")
+        obs_normalizer = EmpiricalNormalization(shape=normalizer_state["_mean"].shape[-1], device="cpu",
+                                                eps=args.get("obs_norm_eps", 1e-2))
         obs_normalizer.load_state_dict(normalizer_state)
-    return InferencePolicy(actor, obs_normalizer, algo, deterministic=deterministic)
+        obs_clip = args.get("obs_norm_clip", None)
+    return InferencePolicy(actor, obs_normalizer, algo, deterministic=deterministic, obs_clip=obs_clip)
 
 
 def load_policy(checkpoint_path: str, deterministic: bool = False) -> InferencePolicy:

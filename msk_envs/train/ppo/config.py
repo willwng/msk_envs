@@ -4,7 +4,7 @@ from typing import Literal
 
 @dataclass
 class PPOConfig:
-    """ Defaults follow musclemimic's fullbody setup (fullbody/conf_fullbody.yaml) """
+    """ Hyperparameter defaults follow musclemimic's fullbody setup """
 
     num_envs: int = 8192
     """number of parallel environments"""
@@ -23,10 +23,14 @@ class PPOConfig:
 
     # ------------------------------------------------------------------ optim
     learning_rate: float = 4e-4
-    """the learning rate (one optimizer for the actor and critic)"""
+    """the learning rate of the actor and critic optimizers"""
 
     schedule: Literal["linear", "fixed", "adaptive"] = "linear"
-    """learning-rate schedule: linear decay to 0 over training, constant, or KL-adaptive"""
+    """learning-rate schedule: linear decay to min_lr_ratio * learning_rate over training, constant, or KL-adaptive
+    (rsl_rl-style, adjusted after every minibatch)"""
+
+    min_lr_ratio: float = 0.0
+    """'linear' schedule: final learning rate as a fraction of learning_rate"""
 
     desired_kl: float = 0.01
     """target KL divergence for the adaptive schedule"""
@@ -45,11 +49,21 @@ class PPOConfig:
     muon_ns_steps: int = 5
     """number of Newton-Schulz iterations"""
 
+    muon_adjust_lr_fn: Literal["original", "match_rms_adamw"] = "original"
+    """Muon per-matrix lr scale: 'original' sqrt(max(1, rows / cols)) as in optax and torch.optim.Muon,
+    or 'match_rms_adamw' 0.2 * sqrt(max(rows, cols)) (6.4x larger steps for 1024 x 1024 matrices)"""
+
+    adam_betas: tuple[float, float] = (0.9, 0.999)
+    """AdamW betas (also used for the AdamW part of muon)"""
+
+    adam_eps: float = 1e-8
+    """AdamW epsilon"""
+
     weight_decay: float = 0.0
     """weight decay for all optimizers"""
 
     max_grad_norm: float = 1.0
-    """maximum global gradient norm over the actor and critic (<= 0 disables clipping)"""
+    """maximum gradient norm, clipped separately for the actor and the critic (<= 0 disables clipping)"""
 
     # ------------------------------------------------------------- ppo losses
     gamma: float = 0.99
@@ -93,11 +107,23 @@ class PPOConfig:
     obs_normalization: bool = True
     """whether to normalize observations by running mean/variance"""
 
+    obs_norm_eps: float = 1e-3
+    """epsilon added to the running obs std before dividing"""
+
+    obs_norm_clip: float | None = 10.0
+    """clip normalized observations to [-clip, clip] (None disables)"""
+
     reward_normalization: bool = True
     """whether to scale rewards by the running std of the discounted return"""
 
+    reward_norm_g_max: float = 10.0
+    """the reward scale is at least max|G| / g_max (bounds normalized returns; inf disables the floor)"""
+
+    bootstrap_truncations: bool = True
+    """on time-limit truncation, add gamma * V(final_obs) to the reward instead of treating it as terminal"""
+
     # ------------------------------------------------------------ misc/train
-    compile: bool = False
+    compile: bool = True
     """whether to torch.compile the loss computation"""
     compile_mode: str | None = None
     compile_backend: str = "inductor"

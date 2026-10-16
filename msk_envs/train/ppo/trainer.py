@@ -49,18 +49,20 @@ class PPOTrainer:
             use_layer_norm=cfg.use_layer_norm,
             device=device,
         )
-        self.params = [*self.actor.parameters(), *self.critic.parameters()]
-        # musclemimic: Muon for the weight matrices and AdamW (eps 1e-5) for the rest, or AdamW for all
-        self.optimizer = make_optimizer(
-            self.params, lr=cfg.learning_rate, betas=(0.9, 0.999), weight_decay=cfg.weight_decay,
-            optimizer=cfg.optimizer, eps=1e-5, fused=False, muon_momentum=cfg.muon_momentum,
-            muon_nesterov=cfg.muon_nesterov, muon_ns_steps=cfg.muon_ns_steps)
+        # Separate actor and critic optimizers: Muon for the weight matrices and AdamW for the rest, or AdamW for all
+        optimizer_kwargs = dict(
+            lr=cfg.learning_rate, betas=tuple(cfg.adam_betas), weight_decay=cfg.weight_decay,
+            optimizer=cfg.optimizer, eps=cfg.adam_eps, fused=False, muon_momentum=cfg.muon_momentum,
+            muon_nesterov=cfg.muon_nesterov, muon_ns_steps=cfg.muon_ns_steps,
+            muon_adjust_lr_fn=cfg.muon_adjust_lr_fn)
+        self.actor_optimizer = make_optimizer(self.actor, **optimizer_kwargs)
+        self.critic_optimizer = make_optimizer(self.critic, **optimizer_kwargs)
         self.lr = cfg.learning_rate
 
-        self.obs_normalizer = EmpiricalNormalization(shape=n_obs, device=device) if cfg.obs_normalization \
-            else nn.Identity()
-        # Scale rewards by the running std of the discounted return (g_max=inf: no floor on the scale)
-        self.reward_normalizer = RewardNormalizer(gamma=cfg.gamma, device=device, g_max=float("inf")) \
+        # Obs and reward normalizers
+        self.obs_normalizer = EmpiricalNormalization(shape=n_obs, device=device, eps=cfg.obs_norm_eps) \
+            if cfg.obs_normalization else nn.Identity()
+        self.reward_normalizer = RewardNormalizer(gamma=cfg.gamma, device=device, g_max=cfg.reward_norm_g_max) \
             if cfg.reward_normalization else None
 
         self.storage = RolloutStorage(
@@ -80,16 +82,18 @@ class PPOTrainer:
     def normalize(self, x, update):
         if isinstance(self.obs_normalizer, nn.Identity):
             return x
-        return self.obs_normalizer(x, update=update)
+        x = self.obs_normalizer(x, update=update)
+        if self.cfg.obs_norm_clip is not None:
+            x = x.clamp(-self.cfg.obs_norm_clip, self.cfg.obs_norm_clip)
+        return x
 
     def compute_losses(self, data):
         cfg = self.cfg
-        log_probs, entropy = self.actor.evaluate_actions(data["observations"], data["actions"])
+        log_probs, entropy, mu, sigma = self.actor.evaluate_actions(data["observations"], data["actions"])
         values = self.critic(data["observations"])
 
-        # Clipped surrogate objective, with advantages normalized over the minibatch
+        # Clipped surrogate objective (advantages are normalized over the rollout)
         advantages = data["advantages"]
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         ratio = torch.exp(log_probs - data["old_log_probs"])
         surrogate = ratio * advantages
         surrogate_clipped = torch.clamp(ratio, 1.0 - cfg.clip_param, 1.0 + cfg.clip_param) * advantages
@@ -101,23 +105,32 @@ class PPOTrainer:
         value_loss = 0.5 * torch.max((values - returns).pow(2), (value_clipped - returns).pow(2)).mean()
 
         entropy = entropy.mean()
-        total_loss = surrogate_loss + cfg.value_loss_coef * value_loss - cfg.entropy_coef * entropy
+        actor_loss = surrogate_loss - cfg.entropy_coef * entropy
+        critic_loss = cfg.value_loss_coef * value_loss
 
-        # Sample-based approximate KL, for logging and the adaptive schedule
+        # Closed-form KL between the rollout and current Gaussians, for logging and the adaptive schedule
         with torch.no_grad():
-            kl = (data["old_log_probs"] - log_probs).mean()
+            old_mu, old_sigma = data["old_mu"], data["old_sigma"]
+            kl = torch.sum(
+                torch.log(sigma / old_sigma + 1e-5)
+                + (old_sigma.pow(2) + (old_mu - mu).pow(2)) / (2.0 * sigma.pow(2))
+                - 0.5,
+                dim=-1,
+            ).mean()
             clip_fraction = ((ratio - 1.0).abs() > cfg.clip_param).float().mean()
-        return total_loss, surrogate_loss, value_loss, entropy, kl, clip_fraction
+        return actor_loss, critic_loss, surrogate_loss, value_loss, entropy, kl, clip_fraction
 
     def update(self, data):
-        total_loss, surrogate_loss, value_loss, entropy, kl, clip_fraction = self._compute_losses(data)
+        actor_loss, critic_loss, surrogate_loss, value_loss, entropy, kl, clip_fraction = self._compute_losses(data)
 
-        self.optimizer.zero_grad(set_to_none=True)
-        total_loss.backward()
+        self.actor_optimizer.zero_grad(set_to_none=True)
+        self.critic_optimizer.zero_grad(set_to_none=True)
+        (actor_loss + critic_loss).backward()
         max_norm = self.cfg.max_grad_norm if self.cfg.max_grad_norm > 0 else float("inf")
-        grad_norm = nn.utils.clip_grad_norm_(self.params, max_norm)
-        if torch.isfinite(grad_norm):  # skip updates with non-finite gradients
-            self.optimizer.step()
+        actor_grad_norm = nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm)
+        critic_grad_norm = nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm)
+        self.actor_optimizer.step()
+        self.critic_optimizer.step()
 
         return {
             "surrogate_loss": surrogate_loss.detach(),
@@ -125,18 +138,19 @@ class PPOTrainer:
             "entropy": entropy.detach(),
             "kl": kl,
             "clip_fraction": clip_fraction,
-            "grad_norm": grad_norm.detach(),
-            "skipped_update": (~torch.isfinite(grad_norm)).float(),
+            "actor_grad_norm": actor_grad_norm.detach(),
+            "critic_grad_norm": critic_grad_norm.detach(),
         }
 
     def set_learning_rate(self, lr: float) -> None:
         self.lr = lr
-        for group in self.optimizer.param_groups:
-            group["lr"] = lr
+        for optimizer in (self.actor_optimizer, self.critic_optimizer):
+            for group in optimizer.param_groups:
+                group["lr"] = lr
 
     def adapt_learning_rate(self, mean_kl: float) -> None:
-        """ Adaptive schedule: lower the learning rate when the update's mean KL is above twice the target, raise it
-        when below half """
+        """ rsl_rl-style adaptive schedule: lower the learning rate when the minibatch KL is above twice the target,
+        raise it when below half """
         cfg = self.cfg
         if mean_kl > cfg.desired_kl * 2.0:
             self.set_learning_rate(max(cfg.min_learning_rate, self.lr / 1.5))
@@ -156,7 +170,8 @@ class PPOTrainer:
             "actor_state_dict": module_state(self.actor),
             "critic_state_dict": module_state(self.critic),
             "obs_normalizer_state": module_state(self.obs_normalizer),
-            "optimizer_state_dict": self.optimizer.state_dict(),
+            "actor_optimizer_state_dict": self.actor_optimizer.state_dict(),
+            "critic_optimizer_state_dict": self.critic_optimizer.state_dict(),
         }
         save_checkpoint(path, self.global_step, self.cfg, state)
 
@@ -165,7 +180,11 @@ class PPOTrainer:
         self.actor.load_state_dict(checkpoint["actor_state_dict"])
         self.critic.load_state_dict(checkpoint["critic_state_dict"])
         self.obs_normalizer.load_state_dict(checkpoint["obs_normalizer_state"])
-        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        if "actor_optimizer_state_dict" in checkpoint:
+            self.actor_optimizer.load_state_dict(checkpoint["actor_optimizer_state_dict"])
+            self.critic_optimizer.load_state_dict(checkpoint["critic_optimizer_state_dict"])
+        else:  # saved with a single optimizer over the actor and critic
+            logger.warning("Checkpoint has no per-network optimizer state; starting the optimizers fresh")
         return checkpoint.get("global_step", 0)
 
     def train(self) -> None:
@@ -177,8 +196,9 @@ class PPOTrainer:
         pbar = tqdm.tqdm(total=cfg.num_learning_iterations, initial=self.global_step)
         while self.global_step < cfg.num_learning_iterations:
             mark_step()
-            if cfg.schedule == "linear":  # decays to 0 at the end of training
-                self.set_learning_rate(cfg.learning_rate * (1.0 - self.global_step / cfg.num_learning_iterations))
+            if cfg.schedule == "linear":  # decays to min_lr_ratio * learning_rate at the end of training
+                frac = max(0.0, 1.0 - self.global_step / cfg.num_learning_iterations)
+                self.set_learning_rate(cfg.learning_rate * (cfg.min_lr_ratio + (1.0 - cfg.min_lr_ratio) * frac))
 
             # Rollout collection
             storage.clear()
@@ -188,18 +208,27 @@ class PPOTrainer:
                 for _ in range(cfg.num_steps_per_env):
                     with torch.no_grad():
                         norm_obs = self.normalize(obs, update=True)  # updates running stats while training
-                        actions, log_probs = self.actor.act(norm_obs)
+                        actions, log_probs, mu, sigma = self.actor.act(norm_obs)
                         values = self.critic(norm_obs)
 
                     next_obs, rewards, terminated, truncations, info = envs.step(actions)
                     dones = (terminated + truncations).bool()
-                    train_rewards = rewards
-                    if self.reward_normalizer is not None:
-                        self.reward_normalizer.update_stats(rewards, dones.float())
-                        train_rewards = self.reward_normalizer(rewards)
+                    with torch.no_grad():
+                        train_rewards = rewards
+                        if self.reward_normalizer is not None:
+                            self.reward_normalizer.update_stats(rewards, dones.float())
+                            train_rewards = self.reward_normalizer(rewards)
+
+                        # Time-limit truncation is not a true terminal: bootstrap from the pre-reset obs
+                        if cfg.bootstrap_truncations:
+                            timeouts = truncations.bool() & ~terminated.bool()
+                            if timeouts.any():
+                                idx = timeouts.nonzero(as_tuple=True)[0]
+                                final_obs = self.normalize(info["final_observation"][idx], update=False)
+                                train_rewards = train_rewards.index_add(0, idx, cfg.gamma * self.critic(final_obs))
 
                     storage.add(obs=norm_obs, actions=actions, rewards=train_rewards, dones=dones,
-                                values=values, log_probs=log_probs)
+                                values=values, log_probs=log_probs, mus=mu, sigmas=sigma)
                     self.logging_helper.update_episode_stats(rewards, dones)
                     raw_reward_sum += rewards.mean()
                     obs = next_obs
@@ -212,16 +241,14 @@ class PPOTrainer:
 
             # Learning
             self.actor.train()
-            kls = []
+            lr_used = self.lr
             with self.logging_helper.record_learn_time():
                 for data in storage.mini_batch_generator(num_mini_batches=cfg.num_mini_batches,
                                                          num_epochs=cfg.num_learning_epochs):
                     metrics = self.update(data)
-                    kls.append(metrics["kl"])
+                    if cfg.schedule == "adaptive":
+                        self.adapt_learning_rate(metrics["kl"].item())
                     self.training_metrics.add(metrics)
-            lr_used = self.lr
-            if cfg.schedule == "adaptive":
-                self.adapt_learning_rate(torch.stack(kls).mean().item())
 
             step = self.global_step
             if step % cfg.logging_interval == 0 and step > 0:
@@ -229,6 +256,8 @@ class PPOTrainer:
                 loss_metrics["env_rewards"] = (raw_reward_sum / cfg.num_steps_per_env).item()
                 loss_metrics["learning_rate"] = lr_used
                 loss_metrics["action_std"] = self.actor.log_std.exp().mean().item()
+                # storage.rewards are normalized + bootstrapped; env_rewards above is the raw env reward
+                loss_metrics["train_rewards"] = storage.rewards.mean().item()
                 extra_log_dicts = {
                     "raw_rewards": raw_rewards_dict,
                     "additional_metrics": envs.additional_metrics(),
