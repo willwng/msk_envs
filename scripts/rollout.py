@@ -24,6 +24,8 @@ def main():
     parser.add_argument("--checkpoint", default="", help="Policy checkpoint (random actions if not given)")
     parser.add_argument("--out-dir", default="rollouts")
     parser.add_argument("--fps", type=float, default=30.0, help="Recording rate")
+    parser.add_argument("--deterministic", action="store_true",
+                        help="Use the policy's mean action instead of sampling (SAC, PPO)")
     cli, task_args = parser.parse_known_args()
     sys.argv = [sys.argv[0]] + task_args  # the task CLI (and its env overrides) reads sys.argv
 
@@ -41,7 +43,7 @@ def main():
     envs = make_env(num_envs=1, env_config=env_config, requires_visuals=True, cuda_graph=has_cuda, device=device)
 
     if cli.checkpoint:
-        policy = load_policy(cli.checkpoint).to(device)
+        policy = load_policy(cli.checkpoint, deterministic=cli.deterministic).to(device)
     else:
         policy = lambda obs: torch.randn_like(envs.get_blank_actions())  # noqa: E731
 
