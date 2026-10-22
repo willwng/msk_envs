@@ -156,6 +156,8 @@ class MSKEnv:
             integrator_min_step_size=env_config.integrator_min_step_size,
             integrator_use_inf_norm=env_config.integrator_use_inf_norm,
             use_implicit_damping=env_config.use_implicit_damping,
+            use_implicit_friction_damping=env_config.use_implicit_friction_damping,
+            step_estimator=env_config.integrator_step_estimator,
         )
         bolt.reinitialize_model(self.m, self.d)
 

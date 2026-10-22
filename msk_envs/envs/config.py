@@ -49,6 +49,8 @@ class EnvConfig:
     """ For adaptive integrator, overall accuracy/tolerance. Lower = more accurate but slower """
     integrator_min_step_size: float = 1e-5
     """ Minimum step size for adaptive integrator """
+    integrator_step_estimator: bolt.StepEstimator = bolt.StepEstimator.PI_CONTROL
+    """ Step estimator (INTEGRAL_CONTROL, PI_CONTROL) """
 
     # --- Model articulation properties ---
     model_path: str = ""
@@ -61,6 +63,8 @@ class EnvConfig:
     """ Additional armature to add to joints (decreases realism but increases performance) """
     use_implicit_damping: bool = False
     """ Whether to integrate joint damping implicitly """
+    use_implicit_friction_damping: bool = False
+    """ Whether to integrate friction damping implicitly (can speed up Hunt-Crossley contacts) """
     use_linear_stop: bool = False
     """ Whether to use LinearStop force instead of CoordinateLimitForce """
 
@@ -146,6 +150,9 @@ class EnvConfigSprinter(EnvConfig):  # Setup used for publication
     starting_pose_path: str = "sprinter/poses/starting_pose_stand.yaml"
     ignore_short_elastic_tendons: bool = True
 
+    use_implicit_damping: bool = False
+    use_implicit_friction_damping: bool = True
+
     muscle_multiplier: float = 2.0
     muscle_v_max: float = 12.0
     armature: float = 1e-3
@@ -160,6 +167,9 @@ class EnvConfigSprinterExp(EnvConfig):
     starting_pose_path: str = "sprinterexp/poses/starting_pose_stand.yaml"
     ignore_short_elastic_tendons: bool = False
     enforce_ground_contact: bool = False
+
+    use_implicit_damping: bool = False
+    use_implicit_friction_damping: bool = False
 
     muscle_multiplier: float = 2.0
     muscle_v_max: float = 12.0
