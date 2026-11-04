@@ -673,7 +673,7 @@
                     <!--The mass of the body (kg)-->
                     <mass>26.829999999999998</mass>
                     <!--The location (Vec3) of the mass center in the body frame.-->
-                    <mass_center>-0.029999999999999999 0.31875199999999998 0</mass_center>
+                    <mass_center>-0.05591930 -0.06645875 0</mass_center>
                     <!--The elements of the inertia tensor (Vec6) as [Ixx Iyy Izz Ixy Ixz Iyz] measured about the mass_center and not the body origin.-->
                     <inertia>1.4941044065675002 0.81178474999999994 1.4941044065675002 0 0 0</inertia>
                 </Body>
@@ -2276,9 +2276,10 @@
                             <!--Rotation or translation axis for the transform.-->
                             <axis>1 0 0</axis>
                             <!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
+                            <SimmSpline name="function">
+<x> -2.0944 -1.74533 -1.39626 -1.0472 -0.698132 -0.349066 -0.174533 0.197344 0.337395 0.490178 1.52146 2.0944</x>
+<y> 0.0013464206823235367 0.006515175167264838 0.008918283464872816 0.008907925239452094 0.006856996606148731 0.0036252302748828276 0.0014500029365307773 -0.0007531916104572279 -0.000968642699208288 -0.0011126220325563525 -0.000968642699208288 -0.0007770155289248937</y>
+</SimmSpline>
                         </TransformAxis>
                         <TransformAxis name="translation2">
                             <!--Names of the coordinates that serve as the independent variables         of the transform function.-->
@@ -2286,9 +2287,10 @@
                             <!--Rotation or translation axis for the transform.-->
                             <axis>0 1 0</axis>
                             <!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
+                            <SimmSpline name="function">
+<x> -2.0944 -1.22173 -0.523599 -0.349066 -0.174533 0.159149 2.0944</x>
+<y> -0.02773860627979832 -0.012822761673955721 -0.0032931942868896103 -0.0018430427279882305 -0.0008072201859158246 0.0005766387302929124 -0.00018572666067239257</y>
+</SimmSpline>
                         </TransformAxis>
                         <TransformAxis name="translation3">
                             <!--Names of the coordinates that serve as the independent variables         of the transform function.-->
@@ -2933,9 +2935,10 @@
                             <!--Rotation or translation axis for the transform.-->
                             <axis>1 0 0</axis>
                             <!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
+                            <SimmSpline name="function">
+<x> -2.0944 -1.74533 -1.39626 -1.0472 -0.698132 -0.349066 -0.174533 0.197344 0.337395 0.490178 1.52146 2.0944</x>
+<y> 0.0013464206823235367 0.006515175167264838 0.008918283464872816 0.008907925239452094 0.006856996606148731 0.0036252302748828276 0.0014500029365307773 -0.0007531916104572279 -0.000968642699208288 -0.0011126220325563525 -0.000968642699208288 -0.0007770155289248937</y>
+</SimmSpline>
                         </TransformAxis>
                         <TransformAxis name="translation2">
                             <!--Names of the coordinates that serve as the independent variables         of the transform function.-->
@@ -2943,9 +2946,10 @@
                             <!--Rotation or translation axis for the transform.-->
                             <axis>0 1 0</axis>
                             <!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
+                            <SimmSpline name="function">
+<x> -2.0944 -1.22173 -0.523599 -0.349066 -0.174533 0.159149 2.0944</x>
+<y> -0.02773860627979832 -0.012822761673955721 -0.0032931942868896103 -0.0018430427279882305 -0.0008072201859158246 0.0005766387302929124 -0.00018572666067239257</y>
+</SimmSpline>
                         </TransformAxis>
                         <TransformAxis name="translation3">
                             <!--Names of the coordinates that serve as the independent variables         of the transform function.-->
@@ -9602,9 +9606,9 @@
                     <!--Maximum isometric force that the fibers can generate-->
                     <max_isometric_force>1365</max_isometric_force>
                     <!--Optimal length of the muscle fibers-->
-                    <optimal_fiber_length>0.091512213501683107</optimal_fiber_length>
+                    <optimal_fiber_length>0.091539454201175596</optimal_fiber_length>
                     <!--Resting length of the tendon-->
-                    <tendon_slack_length>0.14305357512906799</tendon_slack_length>
+                    <tendon_slack_length>0.143096158291493</tendon_slack_length>
                     <!--Angle between tendon and fibers at optimal fiber length expressed in radians-->
                     <pennation_angle_at_optimal>0.052359879999999998</pennation_angle_at_optimal>
                     <!--tendon strain at maximum isometric muscle force-->
@@ -13716,9 +13720,9 @@
                     <!--Maximum isometric force that the fibers can generate-->
                     <max_isometric_force>408.80000000000001</max_isometric_force>
                     <!--Optimal length of the muscle fibers-->
-                    <optimal_fiber_length>0.11653946403324433</optimal_fiber_length>
+                    <optimal_fiber_length>0.11626986152229538</optimal_fiber_length>
                     <!--Resting length of the tendon-->
-                    <tendon_slack_length>0.014954651663294415</tendon_slack_length>
+                    <tendon_slack_length>0.014920055557398124</tendon_slack_length>
                     <!--Angle between tendon and fibers at optimal fiber length expressed in radians-->
                     <pennation_angle_at_optimal>0</pennation_angle_at_optimal>
                     <!--Compute muscle dynamics ignoring tendon compliance. Tendon is assumed to be rigid.-->
@@ -16146,7 +16150,7 @@
                     <!--Body name to connect the contact geometry to-->
                     <socket_frame>/bodyset/femur_l</socket_frame>
                     <!--Location of geometry center in the body frame-->
-                    <location>0.0 -0.225 0.0</location>
+                    <location>0.0 -0.225 -0.01</location>
                     <!--Orientation of geometry in the body frame-->
                     <orientation>1.5707 0.1 0</orientation>
                     <radii>0.06 0.16 0.06</radii>
@@ -16232,7 +16236,7 @@
                     <location>-0.01 -0.18 -0.02</location>
                     <!--Orientation of geometry in the body frame-->
                     <orientation>1.5707 0 0</orientation>
-                    <radii>0.035 0.15 0.035</radii>
+                    <radii>0.025 0.15 0.025</radii>
                 </ContactEllipsoid>
             </objects>
             <groups/>
