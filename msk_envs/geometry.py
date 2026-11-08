@@ -3,6 +3,7 @@ World axes, quaternions and transforms.
 
 Quaternions are in (x, y, z, w) format. Transforms are (position, quaternion), i.e. [..., 7].
 """
+import numpy as np
 import torch
 
 FWD_IDX = 0  # x-axis is the lane direction
@@ -23,6 +24,25 @@ def rotate_vec(rot: torch.Tensor, v: torch.Tensor):
     pure_x_v = torch.cross(pure, v, dim=-1)
     pure_x_pure_x_v = torch.cross(pure, pure_x_v, dim=-1)
     return v + 2.0 * (pure_x_v * scalar + pure_x_pure_x_v)
+
+
+def quat_rotate_np(q: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """ rotate_vec in numpy: rotate (..., 3) vectors by (..., 4) quaternions """
+    u, w = q[..., :3], q[..., 3:]
+    t = 2.0 * np.cross(u, v)
+    return v + w * t + np.cross(u, t)
+
+
+def quat_mul_np(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """ Hamilton product of (..., 4) quaternions (broadcast) """
+    ax, ay, az, aw = np.moveaxis(a, -1, 0)
+    bx, by, bz, bw = np.moveaxis(b, -1, 0)
+    return np.stack([
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    ], axis=-1)
 
 
 def quat_normalize(q: torch.Tensor) -> torch.Tensor:

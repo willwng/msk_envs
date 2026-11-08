@@ -98,14 +98,6 @@ def setup_sky():
     links.new(background.outputs['Background'], output.inputs['Surface'])
 
 
-def hide_objects():
-    for obj in bpy.data.objects:
-        if obj.type not in ["CAMERA", "LIGHT"]:
-            obj.hide_render = True
-            obj.hide_viewport = True
-    return
-
-
 def reset_scene():
     clear_scene()
     setup_lighting()

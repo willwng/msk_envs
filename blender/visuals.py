@@ -1,101 +1,61 @@
-import math
+""" Bone meshes: one mesh per file (shared by objects that use the same file), keyframed from the recording """
 import os
 
 import bpy
-import mathutils
+import numpy as np
 
-from util import vec_yup_zup, quat_xyzw_to_wxyz
-from material import create_bone_material
+from util import add_object, animate_transforms, set_smooth
 
-if not hasattr(bpy.ops.wm, 'obj_import') and not hasattr(bpy.ops.import_scene, 'obj'):
-    bpy.ops.preferences.addon_enable(module="io_scene_obj")
-
-loaded_objs = {}
-""" Imported objects, by (obj path, mesh id) """
-bone_material = None
-""" Shared by all visuals, created on first use """
-
-
-def get_bone_material():
-    global bone_material
-    if bone_material is None:
-        bone_material = create_bone_material()
-    return bone_material
-
-
-def import_obj(obj_path, identifier):
-    # .vtp meshes are imported from the .obj next to them
-    root, ext = os.path.splitext(obj_path)
-    if ext == ".vtp":
-        obj_path = root + ".obj"
-
-    # Cached
-    key = (obj_path, identifier)
-    if key in loaded_objs:
-        return loaded_objs[key]
-
-    bpy.ops.wm.obj_import(filepath=obj_path)
-    imported = bpy.context.selected_objects
-
-    # Apply smooth shading to all imported objects
-    for obj in imported:
-        if obj.type == 'MESH':
-            bpy.context.view_layer.objects.active = obj
-            obj.select_set(True)
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.select_all(action='SELECT')
-            bpy.ops.mesh.faces_shade_smooth()
-            bpy.ops.object.mode_set(mode='OBJECT')
-            obj.select_set(False)
-
-    loaded_objs[key] = imported
-    return imported
-
-
-def update_visual(visual, frame_num, geometry_path):
-    # Fetch object data
-    identifier = visual["mesh_file"]
-    obj_path = visual["mesh_file"]
-    location = vec_yup_zup(visual["pos"])
-    scale = visual["scale"]
-    # Rotation y-up to z-up
-    quat_data = visual["rot"]
-    rotation = mathutils.Quaternion(quat_xyzw_to_wxyz(quat_data))
-    q_conv = mathutils.Quaternion((1.0, 0.0, 0.0), math.radians(90.0))
-    rotation = q_conv @ rotation
-
-    # Retrieve OBJ
-    obj_path = os.path.join(geometry_path, os.path.basename(obj_path))
-    imported_objects = import_obj(obj_path, identifier)
-
-    # Handle multiple objects from a single OBJ file
-    for obj in imported_objects:
-        if obj.type != 'MESH':
-            continue
-
-        # Ensure the object is visible
-        obj.rotation_mode = 'QUATERNION'
-        obj.hide_render = False
-        obj.hide_viewport = False
-
-        # Set transformation
-        obj.location = location
-        obj.rotation_quaternion = rotation
-        obj.scale = scale
-
-        # Apply bone material
-        if obj.data.materials:
-            obj.data.materials[0] = get_bone_material()
-        else:
-            obj.data.materials.append(get_bone_material())
-
-        # Insert keyframes
-        obj.keyframe_insert(data_path="location", frame=frame_num)
-        obj.keyframe_insert(data_path="rotation_quaternion", frame=frame_num)
-        obj.keyframe_insert(data_path="scale", frame=frame_num)
+_meshes = {}
+""" Imported mesh data, by file """
 
 
 def clear_visual_cache():
-    global loaded_objs, bone_material
-    loaded_objs = {}
-    bone_material = None
+    _meshes.clear()
+
+
+def import_mesh(path: str):
+    """ The mesh data of an OBJ file, imported without axis conversion (the root empty converts y-up to z-up) """
+    if path in _meshes:
+        return _meshes[path]
+    root, ext = os.path.splitext(path)
+    if ext.lower() == ".vtp":  # Blender can't read .vtp: bolt's geometry directory has an .obj next to each
+        path_obj = root + ".obj"
+    else:
+        path_obj = path
+    if not os.path.exists(path_obj):
+        print(f"Missing mesh {path_obj}")
+        _meshes[path] = None
+        return None
+    before = set(bpy.data.objects)
+    bpy.ops.wm.obj_import(filepath=path_obj, forward_axis="Y", up_axis="Z")
+    imported = [o for o in bpy.data.objects if o not in before and o.type == "MESH"]
+    if not imported:
+        _meshes[path] = None
+        return None
+    if len(imported) > 1:
+        with bpy.context.temp_override(active_object=imported[0], selected_editable_objects=imported):
+            bpy.ops.object.join()
+    obj = imported[0]
+    mesh = obj.data
+    mesh.name = os.path.basename(root)
+    set_smooth(mesh)
+    for o in [o for o in bpy.data.objects if o not in before]:
+        bpy.data.objects.remove(o)
+    _meshes[path] = mesh
+    return mesh
+
+
+def build_visuals(anim: dict, root, col, material, geometry_dir: str, frames: np.ndarray):
+    objs = []
+    X = np.array([f["visuals"] for f in anim["frames"]], dtype=np.float64)  # [n_frames, n_visuals, 7]
+    for k, visual in enumerate(anim["visuals"]):
+        mesh = import_mesh(os.path.join(geometry_dir, os.path.basename(visual["mesh_file"])))
+        if mesh is None:
+            continue
+        if not mesh.materials:
+            mesh.materials.append(material)
+        obj = add_object(f"{mesh.name}_{k}", mesh, col, root)
+        animate_transforms(obj, frames, X[:, k], scale=visual.get("scale", (1, 1, 1)))
+        objs.append(obj)
+    return objs

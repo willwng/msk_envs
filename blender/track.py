@@ -1,3 +1,5 @@
+import os
+
 import bpy
 import bmesh
 import math
@@ -432,7 +434,7 @@ def setup_track():
         tex_image = p_nodes.new(type="ShaderNodeTexImage")
 
         # USER_ACTION: This is the slot where you can load your custom image texture!
-        tex_image.image = bpy.data.images.load("bolt.png")
+        tex_image.image = bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "bolt.png"))
 
         # Link image texture to base color
         p_links.new(tex_image.outputs['Color'], p_bsdf.inputs['Base Color'])

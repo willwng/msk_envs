@@ -55,8 +55,7 @@ Use `--traj-dir` to view trajectories elsewhere (such as when using sshfs),
 `--port` to serve on another port, and `--geometry-dir` to point at the `Geometry/` directory.
 
 ### Blender
-We include scripts for importing trajectories as Blender animations (this may take several minutes for long
-trajectories). From the command line:
+We include scripts for importing trajectories as Blender animations. From the command line:
 ```bash
 blender -b -P blender/blender_render.py -- --traj <trajectory.json.gz> --geometry <bolt>/data/geometry --save scene.blend
 ```

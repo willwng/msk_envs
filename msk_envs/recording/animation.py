@@ -1,10 +1,10 @@
 """
-The animation JSON read by the dashboard and Blender: a list of frames, each with the scene settings, visuals,
-colliders, muscles, and camera/foot positions for following the model (format: see msk_envs/trajectory_io.py).
+The animation file read by the dashboard and Blender: the model's visuals, colliders, muscle paths and wrapping
+surfaces in every frame, and camera/foot positions for following it (format: see msk_envs/trajectory_io.py).
 """
 import numpy as np
 
-from msk_envs.trajectory_io import save_trajectory
+from msk_envs.trajectory_io import frames_to_animation, save_trajectory
 from .frame_data import FrameData, to_json_value
 
 
@@ -40,9 +40,10 @@ def create_animation_json(frame_data: list[FrameData], out_file: str):
             "muscles": [muscle.to_anim_dict() for muscle in frame.muscles],
             "arrows": to_json_value(frame.arrows),
             "targets": to_json_value(frame.targets),
+            "wrap_surfaces": to_json_value(frame.wrap_surfaces),
             "cam_pos": list(cam_pos),
             "foot_l_pos": list(frame.kinetic_data.foot_pos_l),
             "foot_r_pos": list(frame.kinetic_data.foot_pos_r),
         })
 
-    save_trajectory(stacked_frames, out_file)
+    save_trajectory(frames_to_animation(stacked_frames), out_file)

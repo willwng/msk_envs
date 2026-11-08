@@ -3,10 +3,11 @@ Per-frame data. These dataclasses define the JSON formats written to disk:
 - frame data (FrameData.to_dict): everything below, used for analytics
 - animation (see animation.py): the subset needed by the dashboard and Blender, with to_anim_dict()
 """
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 from typing import Optional
 
 from msk_envs.envs.utils.scene_settings import SceneSettings
+from msk_envs.trajectory_io import MUSCLE_FRAME_FIELDS
 
 
 def to_json_value(value):
@@ -57,7 +58,8 @@ class VisualData(Serializable):
 class MuscleData(Serializable):
     name: str
     points: list
-    """ Path points, [n_points][3] """
+    """ Path polyline, [n_points][3]: sampled over wrapping surfaces, with inactive conditional points collapsed onto
+    the previous point, so every frame has the same number of points (see muscle_paths.py) """
 
     max_isometric_force: float
     optimal_fiber_length: float
@@ -82,11 +84,12 @@ class MuscleData(Serializable):
     moment_arm: list[float]
     """ Per qpos """
 
-    ANIM_FIELDS = ("name", "points", "max_isometric_force", "activation", "excitation", "path_length",
-                   "fiber_length", "tendon_length")
+    ANIM_FIELDS = ("name", "max_isometric_force", "optimal_fiber_length", "tendon_slack_length") + MUSCLE_FRAME_FIELDS
+    """ The animation's muscle fields (trajectory_io), besides points """
 
     def to_anim_dict(self) -> dict:
-        return {name: to_json_value(getattr(self, name)) for name in self.ANIM_FIELDS}
+        # points are already lists of [x, y, z] (frame_parser.parse_muscle_data)
+        return {"points": self.points} | {name: to_json_value(getattr(self, name)) for name in self.ANIM_FIELDS}
 
 
 @dataclass
@@ -157,6 +160,19 @@ class Arrow(Serializable):
 
 
 @dataclass
+class WrapSurfaceData(Serializable):
+    """ A muscle wrapping surface (see muscle_paths.WrapSurface), in its surface frame """
+    name: str
+    wrap_type: int
+    """ bolt.WrapType value: 0 sphere, 1 cylinder (along z), 2 ellipsoid, 3 torus (around z) """
+    size: list[float]
+    half_length: float
+    """ Drawn half length of cylinders """
+    pos: list[float]
+    rot: list[float]
+
+
+@dataclass
 class TargetData(Serializable):
     pos: list[float]
     rot: list[float]
@@ -181,3 +197,4 @@ class FrameData(Serializable):
     targets: list[TargetData]
     beam_points: list[PointData]
     scene_settings: SceneSettings
+    wrap_surfaces: list[WrapSurfaceData] = field(default_factory=list)

@@ -8,7 +8,7 @@ import torch
 from msk_envs.envs.utils.scene_settings import SceneSettings
 from msk_envs.geometry import get_position_from_transform, get_rotation_from_transform
 from .frame_data import (ActuatorData, Arrow, BodyForces, ColliderData, FrameData, JointMoment, JointMuscleBreakdown,
-                         KineticData, MuscleData, NamedValue, PointData, VisualData)
+                         KineticData, MuscleData, NamedValue, PointData, VisualData, WrapSurfaceData)
 
 
 def _to_list(values) -> list:
@@ -66,8 +66,10 @@ def parse_muscle_data(
         m: bolt.Model,
         d: bolt.Data,
         muscle_idx_to_name: dict[int, str],
-        world_id: int
+        world_id: int,
+        paths: list,
 ) -> list[MuscleData]:
+    """ paths: the polyline of each muscle, as lists of [x, y, z] (see muscle_paths.MusclePathSampler) """
     activations = bolt.muscle_activations(d)[world_id].tolist()
     excitations = bolt.muscle_excitations(d)[world_id].tolist()
     actuations = bolt.muscle_actuations(d)[world_id].tolist()
@@ -88,17 +90,11 @@ def parse_muscle_data(
         for k in ["fiber_force_velocity_multiplier", "fiber_damping_force_multiplier", "fiber_velocity"]
     }
 
-    site_positions = bolt.site_positions(d)[world_id].tolist()
-    muscle_site_adr = bolt.muscle_site_adr(m)
-    muscle_site_num = bolt.muscle_site_num(m)
-
     muscles = []
     for i in range(bolt.get_num_muscles(m)):
-        pt_adr = muscle_site_adr[i]
-        n_pts = muscle_site_num[i]
         muscles.append(MuscleData(
             name=muscle_idx_to_name[i],
-            points=site_positions[pt_adr:pt_adr + n_pts],
+            points=paths[i],
             max_isometric_force=float(metadata["max_isometric_force"][i]),
             optimal_fiber_length=float(metadata["optimal_fiber_length"][i]),
             tendon_slack_length=float(metadata["tendon_slack_length"][i]),
@@ -291,7 +287,10 @@ def parse_frame(
         world_id: int,
         frame_time: float,
         scene_settings: SceneSettings,
+        muscle_paths: list,
+        wrap_surfaces: list[WrapSurfaceData] = (),
 ) -> FrameData:
+    """ muscle_paths: polyline of each muscle in this world; wrap_surfaces: its wrapping surfaces (muscle_paths.py) """
     body_idx_to_name = {v: k for k, v in body_name_to_idx.items()}
     return FrameData(
         time=frame_time,
@@ -303,7 +302,8 @@ def parse_frame(
         joint_moments=parse_joint_moments(m, d, dof_idx_to_name, world_id),
         joint_muscle_breakdown=parse_joint_muscle_breakdown(m, d, qpos_idx_to_name, world_id),
         body_forces=parse_body_forces(m, d, body_idx_to_name, world_id),
-        muscles=parse_muscle_data(m, d, muscle_idx_to_name, world_id),
+        muscles=parse_muscle_data(m, d, muscle_idx_to_name, world_id, muscle_paths),
+        wrap_surfaces=list(wrap_surfaces),
         actuators=parse_actuator_data(m, d, actuation_idx_to_name, world_id),
         kinetic_data=parse_kinetic_data(m, d, body_name_to_idx, world_id),
         beam_points=parse_beam_points(m, d, world_id),

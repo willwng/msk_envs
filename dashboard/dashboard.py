@@ -4,22 +4,26 @@ Web viewer for recorded trajectories (http://localhost:8000):
     python dashboard/dashboard.py [--traj-dir dashboard/trajectories] [--geometry-dir <bolt geometry>] [--port 8000]
 
 Trajectories are read from --traj-dir, which training writes to (one subdirectory per experiment). Meshes are served
-from bolt's geometry directory, or --geometry-dir when bolt is not installed.
+from bolt's geometry directory, or --geometry-dir when bolt is not installed. The page (js/viewer.js) fetches a
+trajectory from /api/trajectory and plays it back in the browser.
 """
 import argparse
+import gzip
 import importlib.util
+import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
-from nicegui import ui, app, events
+from fastapi import HTTPException
+from fastapi.responses import Response
+from nicegui import ui, app
 
 DASHBOARD_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(DASHBOARD_DIR))  # for timeline_controller when imported from elsewhere
-sys.path.insert(1, str(DASHBOARD_DIR.parent))  # for msk_envs, when it is not installed
+sys.path.insert(0, str(DASHBOARD_DIR.parent))  # for msk_envs, when it is not installed
 
-from msk_envs.trajectory_io import load_trajectory, trajectory_fps  # noqa: E402
-from timeline_controller import TimelineController  # noqa: E402
+from msk_envs.trajectory_io import dumps, is_current_format, load_animation  # noqa: E402
 
 
 def default_geometry_dir() -> str:
@@ -47,27 +51,22 @@ parser.add_argument("--geometry-dir", type=str, default=None,
                     help="Mesh directory (default: bolt's geometry directory)")
 parser.add_argument("--port", type=int, default=8000)
 args, _ = parser.parse_known_args()
-TRAJ_DIR = Path(args.traj_dir)
+TRAJ_DIR = Path(args.traj_dir).resolve()
 GEOMETRY_DIR = args.geometry_dir or default_geometry_dir()
 
 
-def dispatch_custom_event(event_name: str, data: str):
-    """ Helper for custom events to viewer or any listeners """
-    ui.run_javascript(f'''
-        window.dispatchEvent(new CustomEvent('{event_name}', {{
-            detail: {data}
-        }}));
-    ''')
-
-
-def format_timeline_label():
-    slider_value_label.set_text(f"Frame {timeline_slider.value} of {timeline_slider.props['max']}")
-
-
-def reset_dashboard():
-    dispatch_custom_event('resetViewer', '{}')
-    timeline_slider.value = 0
-    format_timeline_label()
+@app.get("/api/trajectory")
+def get_trajectory(path: str):
+    """ The trajectory at [path] (relative to the trajectory directory), as a gzipped version 2 animation """
+    file = (TRAJ_DIR / path).resolve()
+    if TRAJ_DIR not in file.parents or not file.is_file():
+        raise HTTPException(status_code=404, detail=f"No trajectory {path}")
+    if file.name.endswith(".gz") and is_current_format(str(file)):
+        body = file.read_bytes()  # sent as is
+    else:
+        body = gzip.compress(dumps(load_animation(str(file))).encode(), compresslevel=3)  # older ones are converted
+    return Response(content=body, media_type="application/json",
+                    headers={"Content-Encoding": "gzip", "Cache-Control": "no-cache"})
 
 
 def _matches_dir_filter(dir_name: str, filter_text: str) -> bool:
@@ -125,38 +124,84 @@ def locate_trajectories():
 
 
 def send_viewer_trajectory(path: Path):
-    reset_dashboard()
-    traj = load_trajectory(str(path))
-    if not traj:
-        ui.notify(f"{path} has no frames")
-        return
-
-    # update slider
-    current_traj_label.set_text(str(path))
-    timeline_controller.max_ticks = len(traj) - 1
-    timeline_slider.props['max'] = len(traj) - 1
-    timeline_slider.update()
-    format_timeline_label()
-
-    # update playback rate to match the recording rate
-    fps = trajectory_fps(traj)
-    timeline_controller.set_tick_rate(fps)
-    tick_rate_input.value = int(fps)
-    tick_rate_input.update()
-
-    dispatch_custom_event('loadTrajectory', traj)
+    rel = str(path.resolve().relative_to(TRAJ_DIR))
+    load_args = json.dumps([f"/api/trajectory?path={quote(rel)}", rel])
+    ui.run_javascript(f"window.mskViewer ? window.mskViewer.load(...{load_args}) : (window.mskPendingLoad = {load_args})")
 
 
-def slider_change(e: events.ValueChangeEventArguments):
-    timeline_controller.slider_change(e.value)
-    format_timeline_label()
-    dispatch_custom_event('sliderChanged', e.value)
-
-
-app.add_static_files('/css', DASHBOARD_DIR / 'css')
-app.add_static_files('/js', DASHBOARD_DIR / 'js')
+app.add_static_files('/css', DASHBOARD_DIR / 'css', max_cache_age=0)  # edits show up on reload
+app.add_static_files('/js', DASHBOARD_DIR / 'js', max_cache_age=0)
 app.add_static_files('/geometry', GEOMETRY_DIR)
 app.add_static_files('/assets', DASHBOARD_DIR / 'assets')
+
+VIEWER_HTML = """
+<div id="viewerWrap">
+  <div id="viewer"></div>
+  <div id="loadingStatus" class="overlay-status">Pick a trajectory above</div>
+  <div id="muscleTooltip"></div>
+
+  <details id="sidePanel" class="panel" open><summary class="panel-title">Controls</summary>
+    <details open><summary>Show</summary>
+      <label><input type="checkbox" id="drawVisuals" checked> Bones</label>
+      <label class="slider">opacity <input type="range" id="boneOpacity" min="0.1" max="1" step="0.05" value="1"></label>
+      <label><input type="checkbox" id="drawMuscles" checked> Muscles</label>
+      <label><input type="checkbox" id="drawWrap"> Wrap surfaces <span id="wrapCount"></span></label>
+      <label><input type="checkbox" id="drawColliders"> Contact geometry</label>
+      <label><input type="checkbox" id="drawBeams" checked> Beams</label>
+      <label><input type="checkbox" id="drawGuides" checked> Command arrows</label>
+      <div id="guideLegend"></div>
+      <label><input type="checkbox" id="drawForces" checked> External forces</label>
+      <label><input type="checkbox" id="drawShadows" checked> Shadows</label>
+    </details>
+    <details open><summary>Muscles</summary>
+      <label class="slider">style
+        <select id="muscleStyle">
+          <option value="tubes">tubes</option>
+          <option value="capsules" selected>capsules</option>
+          <option value="lines">lines</option>
+        </select></label>
+      <label class="slider">color
+        <select id="muscleColor">
+          <option value="activation">activation</option>
+          <option value="excitation">excitation</option>
+          <option value="force">force / max</option>
+        </select></label>
+      <div class="colorbar-row"><span>0</span><div id="colorBar"></div><span>1</span></div>
+      <label class="slider">thickness <input type="range" id="muscleScale" min="0.2" max="2.5" step="0.05" value="1"></label>
+      <label><input type="checkbox" id="drawTendons" checked> Tendons</label>
+      <input type="text" id="muscleFilter" placeholder="only: e.g. vas* glut*_r">
+    </details>
+    <details open><summary>Camera</summary>
+      <label class="slider">view
+        <select id="layout">
+          <option value="single">single</option>
+          <option value="panel">3 views</option>
+          <option value="feet">with feet</option>
+        </select></label>
+      <label><input type="checkbox" id="follow" checked> Follow</label>
+      <button id="resetCamera">Reset cameras</button>
+    </details>
+    <details open><summary>Scene</summary>
+      <label class="slider">ground <select id="groundStyle"></select></label>
+      <label class="slider">grid <select id="groundGrid"></select></label>
+    </details>
+  </details>
+
+  <div id="playbar" class="panel">
+    <button id="stepBack" title="Previous frame (left arrow)">◀︎◀︎</button>
+    <button id="playButton" title="Play / pause (space)">▶</button>
+    <button id="stepForward" title="Next frame (right arrow)">▶︎▶︎</button>
+    <input type="range" id="timeline" min="0" max="0" value="0" step="1">
+    <span id="timeValue">t = 0.000 s</span>
+    <span id="frameValue"></span>
+    <select id="speed" title="Playback speed">
+      <option value="0.1">0.1x</option><option value="0.25">0.25x</option><option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option><option value="2">2x</option>
+    </select>
+    <label><input type="checkbox" id="loop" checked> loop</label>
+  </div>
+</div>
+"""
 
 ui.add_head_html("""
 <script type="importmap">
@@ -174,73 +219,19 @@ ui.colors(primary='#555')
 
 selected_traj_dir = ""
 
-with ui.row().classes('w-full z-50 bg-white').style(
-        'border: 3px solid #ccc; border-radius: 8px; box-sizing: border-box;'):
-    # Title and trajectory selection
-    with ui.row().classes("w-full justify-center mt-4"):
-        ui.label("MSK Dashboard").classes("text-2xl font-bold")
-        with ui.row().classes("items-center justify-center gap-4"):
-            dir_filter_input = ui.input(
-                label="Filter dir",
-                placeholder="e.g. exp*",
-                on_change=locate_traj_dirs,
-            ).classes("w-48")
-            traj_dir_options = ui.dropdown_button("Traj Dir", auto_close=True, on_click=locate_traj_dirs)
-            traj_dir_label = ui.label("Dir: All")
-            trajectory_options = ui.dropdown_button("Trajectories", auto_close=True, on_click=locate_trajectories)
+with ui.row().classes('w-full items-center gap-4 px-4 py-2 bg-white').style('border-bottom: 1px solid #ddd'):
+    ui.label("MSK Dashboard").classes("text-xl font-bold")
+    dir_filter_input = ui.input(label="Filter dir", placeholder="e.g. exp*", on_change=locate_traj_dirs) \
+        .props("dense").classes("w-40")
+    traj_dir_options = ui.dropdown_button("Traj Dir", auto_close=True, on_click=locate_traj_dirs).props("dense")
+    traj_dir_label = ui.label("Dir: All")
+    trajectory_options = ui.dropdown_button("Trajectories", auto_close=True, on_click=locate_trajectories) \
+        .props("dense")
+    with ui.column().classes("gap-0"):
+        ui.html('<span id="currentTrajectory" class="font-mono text-sm"></span>')
+        ui.html('<span id="trajectoryInfo" class="text-xs text-gray-500"></span>')
 
-    # Renderer/viewer (see js/viewer.js)
-    ui.html("""
-        <div style="width: 100%">
-            <div id="viewer"></div>
-            <div class="controls" style="padding: 1em;">
-                <div class="control-row">
-                    <label for="drawVisuals">Draw visuals</label>
-                    <input type="checkbox" id="drawVisuals" checked>
-
-                    <label for="drawBeams">Draw beams</label>
-                    <input type="checkbox" id="drawBeams" checked>
-
-                    <label for="drawCapsuleColliders">Draw capsule colliders</label>
-                    <input type="checkbox" id="drawCapsuleColliders">
-
-                    <label for="drawSphereColliders">Draw sphere colliders</label>
-                    <input type="checkbox" id="drawSphereColliders">
-
-                    <label for="drawMuscles">Draw muscles</label>
-                    <input type="checkbox" id="drawMuscles" checked>
-                </div>
-                <button id="fullScreenButton">Panel View</button>
-                <div class="control-row">
-                    <button id="resetButton1">Camera 1 follow</button>
-                    <button id="resetButton2">Camera 2 follow</button>
-                    <button id="resetButton3">Camera 3 follow</button>
-                </div>
-            </div>
-        </div>
-    """).classes('w-full')
-
-    # Playback controls
-    with ui.column().classes("items-center w-full"):
-        timeline_slider = ui.slider(min=0, max=0, value=0, on_change=slider_change)
-        timeline_slider.props('id="timeline"')
-        with ui.row().classes("items-center"):
-            current_traj_label = ui.label("")
-            slider_value_label = ui.label("")
-            time_value_label = ui.label("").props('id="timeValue"')
-            play_button = ui.button("Play", on_click=lambda: timeline_controller.toggle_playback())
-            ui.label("Tick Rate:")
-            tick_rate_input = ui.number(
-                value=15,
-                min=0.0,
-                step=1.0,
-                on_change=lambda e: timeline_controller.set_tick_rate(e.value)
-            ).classes("w-20")
-
-timeline_controller = TimelineController(tick_rate=tick_rate_input.value,
-                                         max_ticks=timeline_slider.props["max"],
-                                         play_button=play_button,
-                                         timeline_slider=timeline_slider)
+ui.html(VIEWER_HTML).classes('w-full')
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(show=False, title="MSK Dashboard", favicon=DASHBOARD_DIR / "assets/textures/favicon.png", port=args.port)

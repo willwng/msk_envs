@@ -1,39 +1,36 @@
+""" A camera that follows the model's (smoothed) center of mass, aimed by a Track To constraint """
 import bpy
-from mathutils import Vector
-from util import vec_yup_zup
+import numpy as np
 
-
-def setup_camera():
-    bpy.ops.object.camera_add(location=(0, -10, 5))
-    camera = bpy.context.active_object
-    camera.name = "AnimationCamera"
-
-    bpy.context.scene.camera = camera
-    camera.data.lens = 50  # 50mm
-    camera.data.clip_start = 0.1
-    camera.data.clip_end = 1000
-    return camera
-
-
-def point_camera_at_target(camera, target_location):
-    direction = Vector(target_location) - camera.location
-    rot_quat = direction.to_track_quat('-Z', 'Y')
-    camera.rotation_euler = rot_quat.to_euler()
-
+from util import animate, vec_yup_zup
 
 CAMERA_OFFSETS = {
     "side": lambda p: [p[0] + 1.0, p[1] - 7.5, p[2] + 0.75],
     "olympic": lambda p: [0.8 * (p[0] + 10.0), p[1] - 10.0, p[2] + 3.0],
     "front": lambda p: [p[0] + 7.5, p[1], p[2] + 1.0],
+    "close": lambda p: [p[0] + 0.6, p[1] - 3.2, p[2] + 0.35],
+    "tracking": lambda p: [p[0] - 4.0, p[1] - 4.0, p[2] + 1.0],
 }
 """ Camera location for each view, given the (z-up) position it follows """
+LENS = {"side": 50, "olympic": 50, "front": 50, "close": 50, "tracking": 35}
 
 
-def update_camera(camera, camera_pos, frame_idx, view: str = "side"):
-    """ Place the camera for [view] relative to [camera_pos] (y-up), looking at it, and keyframe it """
-    camera_pos = vec_yup_zup(camera_pos)
-    camera.location = CAMERA_OFFSETS[view](camera_pos)
-    point_camera_at_target(camera, camera_pos)
+def setup_camera(anim: dict, frames: np.ndarray, view: str = "side"):
+    target = bpy.data.objects.new("CameraTarget", None)
+    bpy.context.scene.collection.objects.link(target)
+    cam_data = bpy.data.cameras.new("AnimationCamera")
+    cam_data.lens = LENS.get(view, 50)
+    cam_data.clip_start = 0.05
+    cam_data.clip_end = 1000
+    camera = bpy.data.objects.new("AnimationCamera", cam_data)
+    bpy.context.scene.collection.objects.link(camera)
+    bpy.context.scene.camera = camera
+    track = camera.constraints.new("TRACK_TO")
+    track.target = target
+    track.track_axis = "TRACK_NEGATIVE_Z"
+    track.up_axis = "UP_Y"
 
-    camera.keyframe_insert(data_path="location", frame=frame_idx)
-    camera.keyframe_insert(data_path="rotation_euler", frame=frame_idx)
+    com = np.array([vec_yup_zup(f["cam_pos"]) for f in anim["frames"]])
+    animate(target, "location", frames, com)
+    animate(camera, "location", frames, np.array([CAMERA_OFFSETS[view](p) for p in com]))
+    return camera

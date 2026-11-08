@@ -11,7 +11,9 @@ import warp as wp
 
 from msk_envs.envs.base import MSKEnv
 from .animation import create_animation_json
+from .frame_data import WrapSurfaceData
 from .frame_parser import parse_frame
+from .muscle_paths import MusclePathSampler
 from .pdf_report import create_pdf_output
 
 
@@ -59,6 +61,9 @@ class LoggedSim:
         self.actuator_idx_to_name = {v: k for k, v in self.envs.actuator_id_lookup.items()}
         self.collider_idx_to_name = {v: k for k, v in self.envs.collider_id_lookup.items()}
 
+        # Muscle polylines and wrapping surfaces for the viewers
+        self.path_sampler = MusclePathSampler(self.envs)
+
         max_episode_duration = self.envs.max_episode_duration
         self.log_times = torch.arange(0, max_episode_duration + self.delta_t_log, self.delta_t_log, device=device)
 
@@ -95,10 +100,20 @@ class LoggedSim:
         times = self.envs.time.tolist()
         finished = self.finished.tolist()
         scene_settings = self.envs.scene_settings()
+        if all(finished):
+            return
+        paths, wrap_transforms = self.path_sampler.sample()
+        surfaces = self.path_sampler.wrap_surfaces
 
         for idx_world in range(self.n_worlds):
             if finished[idx_world]:
                 continue
+            wrap_surfaces = [
+                WrapSurfaceData(name=s.name, wrap_type=s.wrap_type, size=s.size, half_length=s.half_length,
+                                pos=wrap_transforms[idx_world, k, :3].tolist(),
+                                rot=wrap_transforms[idx_world, k, 3:].tolist())
+                for k, s in enumerate(surfaces)
+            ]
             frame = parse_frame(
                 m=self.envs.m,
                 d=self.envs.d,
@@ -113,6 +128,8 @@ class LoggedSim:
                 world_id=idx_world,
                 frame_time=float(times[idx_world]),
                 scene_settings=scene_settings,
+                muscle_paths=[path[idx_world].tolist() for path in paths],
+                wrap_surfaces=wrap_surfaces,
             )
             self.frame_data[idx_world].append(frame)
 

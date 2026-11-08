@@ -102,6 +102,12 @@ class MSKEnv:
             muscle_fn_path=(resolve_model_path(env_config.muscle_function_path)
                             if env_config.use_function_based_path else None),
         )
+        # How to load the model again with geometry muscle paths, for drawing them (see recording/muscle_paths.py)
+        self.geometry_model_spec = {
+            "model_path": resolve_model_path(env_config.model_path),
+            "scene": None,
+            "integrator": env_config.integrator,
+        }
         self.load_result = load_result
         self.m = load_result.model
         self.d = load_result.data
