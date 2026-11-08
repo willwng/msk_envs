@@ -13,18 +13,18 @@ const $ = id => document.getElementById(id);
 
 // Camera layouts: viewports as [x, y, w, h] fractions of the canvas (y from the bottom), and what each camera follows
 const LAYOUTS = {
-    single: [{rect: [0, 0, 1, 1], follow: "com", offset: [0.0, 0.5, 2.6]}],
+    single: [{rect: [0, 0, 1, 1], follow: "com", offset: [0.0, 0.65, 3.5]}],
     panel: [
-        {rect: [0, 0, 1 / 3, 1], follow: "com", offset: [0.0, 0.5, 2.6]},
-        {rect: [1 / 3, 0, 1 / 3, 1], follow: "com", offset: [2.6, 0.5, 0.0]},
-        {rect: [2 / 3, 0, 1 / 3, 1], follow: "com", offset: [-1.8, 1.0, 1.0]},
+        {rect: [0, 0, 1 / 3, 1], follow: "com", offset: [0.0, 0.65, 3.5]},
+        {rect: [1 / 3, 0, 1 / 3, 1], follow: "com", offset: [3.5, 0.65, 0.0]},
+        {rect: [2 / 3, 0, 1 / 3, 1], follow: "com", offset: [-2.4, 1.35, 1.35]},
     ],
     feet: [
-        {rect: [0, 0, 1 / 3, 1], follow: "com", offset: [0.0, 0.5, 2.6]},
-        {rect: [1 / 3, 0.5, 1 / 3, 0.5], follow: "footR", offset: [0.0, 0.1, 0.9]},
-        {rect: [2 / 3, 0.5, 1 / 3, 0.5], follow: "footR", offset: [0.9, 0.1, 0.0]},
-        {rect: [1 / 3, 0, 1 / 3, 0.5], follow: "footL", offset: [0.0, 0.1, -0.9]},
-        {rect: [2 / 3, 0, 1 / 3, 0.5], follow: "footL", offset: [0.9, 0.1, 0.0]},
+        {rect: [0, 0, 1 / 3, 1], follow: "com", offset: [0.0, 0.65, 3.5]},
+        {rect: [1 / 3, 0.5, 1 / 3, 0.5], follow: "footR", offset: [0.0, 0.15, 1.2]},
+        {rect: [2 / 3, 0.5, 1 / 3, 0.5], follow: "footR", offset: [1.2, 0.15, 0.0]},
+        {rect: [1 / 3, 0, 1 / 3, 0.5], follow: "footL", offset: [0.0, 0.15, -1.2]},
+        {rect: [2 / 3, 0, 1 / 3, 0.5], follow: "footL", offset: [1.2, 0.15, 0.0]},
     ],
 };
 
@@ -144,7 +144,7 @@ class Viewer {
         const settings = anim.scene_settings || {};
         if (settings.meter_markers) setupNumbers(env);
         if (settings.lanes) setupLanes(env, settings.lane_width);
-        if (settings.curve) setupCurve(env);
+        if (settings.curve) setupCurve(env, settings.curve_direction ?? 1);
         if (settings.axes) setupAxes(env);
         world.add(env);
 

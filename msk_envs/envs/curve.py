@@ -7,11 +7,16 @@ from .base import MSKEnv
 
 
 class CurvedTrackEnv(MSKEnv):
-    """ Run around the bend of a standard track, staying within a lane """
+    """
+    Run around the bend of a standard track, staying within a lane. The bend turns right (clockwise seen from above)
+    or left (counterclockwise, as on a real track), drawn at random each episode; the observation tells which
+    """
     angle_tolerance: float = 30.0
     """ Terminate when the pelvis faces more than this many degrees away from the track tangent """
     lane_index: int = 0
     """ 0 for Lane 1 """
+    direction: str = "random"
+    """ "random" (each episode), "clockwise" (turning right) or "counterclockwise" (turning left) """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -24,18 +29,38 @@ class CurvedTrackEnv(MSKEnv):
         # Target radius is the center of the chosen lane
         self.target_radius = (self.inner_radius + (self.lane_index * self.lane_width) + (self.lane_width / 2))
 
-        # Center of the curve circle in world space, agent starts at (x=0, z=0) facing +x
-        #   so the circle center must be at z=+R
-        # so that the initial tangent direction is +x
-        self.curve_center = torch.zeros((1, 3), device=self.device)
-        self.curve_center[:, SIDE_IDX] = self.target_radius
+        # The agent starts at (x=0, z=0) facing +x, so the bend's center is at z = sign * R, where sign (per world) is
+        # +1 for a clockwise bend (turning right, toward +z) and -1 for a counterclockwise one (turning left). The
+        # geometry below is computed for the clockwise bend, in coordinates mirrored in z by sign
+        assert self.direction in ("random", "clockwise", "counterclockwise"), self.direction
+        self.curve_sign = torch.ones(self.num_worlds, device=self.device)
+        self.curve_center = torch.zeros((self.num_worlds, 3), device=self.device)
+        self._sample_direction(torch.ones(self.num_worlds, dtype=torch.bool, device=self.device))
 
         self.fwd_axis = torch.tensor(build_axis(FWD_IDX, 1.0), device=self.device, dtype=torch.float32).unsqueeze(0)
         self.cos_angle_threshold = torch.cos(torch.deg2rad(torch.tensor(self.angle_tolerance, device=self.device)))
         self.max_distance_reached = 0.0
 
+    def _sample_direction(self, reset_mask: torch.Tensor) -> None:
+        n = int(reset_mask.sum())
+        if self.direction == "random":
+            sign = torch.randint(0, 2, (n,), device=self.device).float() * 2.0 - 1.0
+        else:
+            sign = torch.full((n,), 1.0 if self.direction == "clockwise" else -1.0, device=self.device)
+        self.curve_sign[reset_mask] = sign
+        self.curve_center[reset_mask, SIDE_IDX] = sign * self.target_radius
+
+    def _upon_reset_pre_sim(self, reset_mask: torch.Tensor) -> None:
+        self._sample_direction(reset_mask)
+
+    def _bend_coords(self, pos) -> torch.Tensor:
+        """ [num_worlds, 2] (x, z) of positions [num_worlds, 3] from the bend's center, z mirrored to a clockwise bend """
+        rel = (pos - self.curve_center)[:, [FWD_IDX, SIDE_IDX]]
+        return torch.stack([rel[:, 0], self.curve_sign * rel[:, 1]], dim=1)
+
     def _get_obs(self) -> torch.Tensor:
         obs = torch.cat([
+            self.curve_sign.view(self.num_worlds, 1),  # +1 clockwise (turn right), -1 counterclockwise (turn left)
             self._get_angle_progress().view(self.num_worlds, 1),
             self.muscle_activations,
             self.muscle_norm_fiber_lengths,
@@ -47,22 +72,15 @@ class CurvedTrackEnv(MSKEnv):
 
     def _get_lane_deviation(self, body_pos) -> torch.Tensor:
         """ Calculates the deviation from center of lane for a body """
-        rel_pos = body_pos - self.curve_center
-        pos_2d = rel_pos[:, [FWD_IDX, SIDE_IDX]]
-        dist_from_center = torch.norm(pos_2d, dim=1, keepdim=True)
-        lane_deviation = (dist_from_center.squeeze(1) - self.target_radius)
-        return lane_deviation
+        dist_from_center = torch.norm(self._bend_coords(body_pos), dim=1)
+        return dist_from_center - self.target_radius
 
     def _get_target_dir(self):
-        """ Returns the tangent of the track at the agent's root pos"""
-        rel_pos = self.root_pos - self.curve_center
-        pos_2d = rel_pos[:, [FWD_IDX, SIDE_IDX]]  # ignore height
-        dist_from_center = torch.norm(pos_2d, dim=1, keepdim=True)
-        radial_vec = pos_2d / (dist_from_center + 1e-6)  # Pointing from center to agent
-
-        # Tangent of track:
-        target_dir = torch.stack([-radial_vec[:, 1], radial_vec[:, 0]], dim=1)
-        return target_dir
+        """ The (x, z) direction of the track (its tangent, in the running direction) at the agent's root """
+        pos_2d = self._bend_coords(self.root_pos)
+        radial_vec = pos_2d / (torch.norm(pos_2d, dim=1, keepdim=True) + 1e-6)  # from the center to the agent
+        # Tangent of the clockwise bend, then mirrored back
+        return torch.stack([-radial_vec[:, 1], self.curve_sign * radial_vec[:, 0]], dim=1)
 
     def _compute_raw_reward_dict(self):
         target_dir = self._get_target_dir()
@@ -104,12 +122,12 @@ class CurvedTrackEnv(MSKEnv):
         return (fallen | toes_out | not_facing).float().detach()
 
     def _get_angle_progress(self):
-        rel_pos = self.root_pos - self.curve_center
-        pos_2d = rel_pos[:, [FWD_IDX, SIDE_IDX]]
+        """ Angle (rad) run around the bend since the start, for either direction """
+        pos_2d = self._bend_coords(self.root_pos)
         angle = torch.atan2(pos_2d[:, 1], pos_2d[:, 0])  # z, x
 
         # Reference angle at start position:
-        # start is (x=0, z=0), center is (0, +R)
+        # start is (x=0, z=0), center is (0, +R) (mirrored)
         # so initial vector is (0, -R) -> angle = -pi/2
         start_angle = -torch.pi / 2
         angle_progress = angle - start_angle
@@ -129,9 +147,10 @@ class CurvedTrackEnv(MSKEnv):
             "max_distance_reached": self.max_distance_reached,
         }
 
-    def scene_settings(self) -> SceneSettings:
+    def scene_settings(self, world_id: int = 0) -> SceneSettings:
         return SceneSettings(
             lanes=False,
             curve=True,
+            curve_direction=float(self.curve_sign[world_id]),
             axes=False,
         )

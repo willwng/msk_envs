@@ -99,7 +99,6 @@ class LoggedSim:
     def add_to_log(self):
         times = self.envs.time.tolist()
         finished = self.finished.tolist()
-        scene_settings = self.envs.scene_settings()
         if all(finished):
             return
         paths, wrap_transforms = self.path_sampler.sample()
@@ -127,7 +126,7 @@ class LoggedSim:
                 visual_load_results=self.envs.visuals,
                 world_id=idx_world,
                 frame_time=float(times[idx_world]),
-                scene_settings=scene_settings,
+                scene_settings=self.envs.scene_settings(idx_world),
                 muscle_paths=[path[idx_world].tolist() for path in paths],
                 wrap_surfaces=wrap_surfaces,
             )

@@ -95,7 +95,7 @@ class LanesEnv(MSKEnv):
     def _get_terminated(self):
         return self._get_lane_terminated().float().detach()
 
-    def scene_settings(self) -> SceneSettings:
+    def scene_settings(self, world_id: int = 0) -> SceneSettings:
         if self.ground_rotation[3] == 1:  # Flat ground
             return SceneSettings(
                 lanes=True,

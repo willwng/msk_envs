@@ -10,6 +10,9 @@ class SceneSettings:
     curve: bool = False
     """ whether to render lane curve """
 
+    curve_direction: float = 1.0
+    """ the curve's direction: 1 clockwise (turning right, toward +z), -1 counterclockwise (turning left) """
+
     lane_width: float = 0.0
     """ the width of lane lines, only used when lanes=True """
 

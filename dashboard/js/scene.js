@@ -95,10 +95,11 @@ function groundLine(points, width = 0.05, y = 0.002) {
     return [strip, line];
 }
 
-export function setupCurve(group) {
+export function setupCurve(group, direction = 1) {
     // The bend of msk_envs/envs/curve.py: the agent starts at (0, 0, 0), the center of lane 1, facing +x, and the
-    // bend's center is at z = +(inner radius + half a lane). The lane's lines run from the start (angle -90 deg from
-    // the center) through the apex at +x to the end of the bend (+90 deg)
+    // bend's center is at z = direction * (inner radius + half a lane), where direction is 1 for a clockwise bend
+    // (turning right, toward +z) and -1 for a counterclockwise one. The lane's lines run from the start (angle -90 deg
+    // from the center) through the apex at +x to the end of the bend (+90 deg), mirrored in z by direction
     const innerRadius = 36.5, laneWidth = 1.22;
     const cz = innerRadius + laneWidth / 2;
     const segments = 256;
@@ -106,7 +107,7 @@ export function setupCurve(group) {
         const points = [];
         for (let i = 0; i <= segments; i++) {
             const a = -Math.PI / 2 + Math.PI * i / segments;
-            points.push([r * Math.cos(a), cz + r * Math.sin(a)]);
+            points.push([r * Math.cos(a), direction * (cz + r * Math.sin(a))]);
         }
         group.add(...groundLine(points));
     }

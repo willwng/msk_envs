@@ -168,7 +168,7 @@ VIEWER_HTML = """
         </select></label>
       <div class="colorbar-row"><span>0</span><div id="colorBar"></div><span>1</span></div>
       <label class="slider">thickness <input type="range" id="muscleScale" min="0.2" max="2.5" step="0.05" value="1"></label>
-      <label><input type="checkbox" id="drawTendons" checked> Tendons</label>
+      <label><input type="checkbox" id="drawTendons"> Tendons</label>
       <input type="text" id="muscleFilter" placeholder="only: e.g. vas* glut*_r">
     </details>
     <details open><summary>Camera</summary>

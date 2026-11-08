@@ -316,8 +316,8 @@ class MSKEnv:
         """ Additional metrics to log during training """
         return {}
 
-    def scene_settings(self) -> SceneSettings:
-        """ Scene settings for the viewer/renderer """
+    def scene_settings(self, world_id: int = 0) -> SceneSettings:
+        """ Scene settings for the viewer/renderer, in world [world_id] """
         return SceneSettings()
 
     def _get_obs(self) -> torch.Tensor:
