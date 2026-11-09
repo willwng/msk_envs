@@ -42,8 +42,9 @@ class CariocaEnv(LanesEnv):
         self.cross_threshold = 0.05
         # How much behind the trailing foot must be to be considered in neutral
         self.forward_threshold = 0.1
-        # Steps allowed per phase before termination
-        self.max_phase_steps = 20
+        # Time allowed per phase before termination (s)
+        self.max_phase_duration = 0.67
+        self.max_phase_steps = max(1, round(self.max_phase_duration / self.delta_t))
 
         self.left_foot_collider_ids = [
             self.collider_id_lookup[collider_key] for collider_key in self.collider_id_lookup.keys()
@@ -74,6 +75,11 @@ class CariocaEnv(LanesEnv):
             self.cross_timer.float().view(self.num_worlds, 1),
         ], dim=1)
         return obs.detach().clone()
+
+    def _compute_raw_reward_dict(self):
+        super()._compute_raw_reward_dict()
+        rew_alive = torch.ones(self.num_worlds, device=self.device)
+        self.reward_dict["rew_alive"] = rew_alive.detach()
 
     def _get_touchdown(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
