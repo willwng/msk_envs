@@ -51,9 +51,14 @@ class PPOActor(nn.Module):
             activation: str = "SiLU",
             use_layer_norm: bool = True,
             device: torch.device = None,
+            init_action_bias: float | torch.Tensor = 0.0,
     ):
         super().__init__()
         self.actor = build_mlp(n_obs, hidden_dims, n_act, activation, use_layer_norm, output_gain=0.01, device=device)
+        # Initial mean action, one value or one per action (e.g. -0.8 starts muscles near rest: excitation
+        # (a + 1) / 2 = 0.1)
+        with torch.no_grad():
+            self.actor[-1].bias.copy_(torch.as_tensor(init_action_bias, dtype=torch.float32))
         log_std = torch.full((n_act,), math.log(init_std), device=device)
         if learnable_std:
             self.log_std = nn.Parameter(log_std)

@@ -100,6 +100,10 @@ class PPOConfig:
     init_std: float = 3.0
     """initial standard deviation of the action noise"""
 
+    init_action_bias: float = 0.0
+    """initial mean muscle action (output-layer bias); actions map to excitations (a + 1) / 2, so -0.8 starts muscles
+    at 0.1. Non-muscle actuators (e.g. the mtp motors) keep 0, their rest"""
+
     learnable_std: bool = True
     """whether the action noise standard deviation is learned"""
 

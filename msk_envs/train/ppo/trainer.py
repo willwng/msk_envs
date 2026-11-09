@@ -41,6 +41,7 @@ class PPOTrainer:
             activation=cfg.activation,
             use_layer_norm=cfg.use_layer_norm,
             device=device,
+            init_action_bias=self._muscle_action_bias(envs, n_act, cfg.init_action_bias, device),
         )
         self.critic = PPOCritic(
             n_obs=n_obs,
@@ -156,6 +157,13 @@ class PPOTrainer:
             self.set_learning_rate(max(cfg.min_learning_rate, self.lr / 1.5))
         elif 0.0 < mean_kl < cfg.desired_kl / 2.0:
             self.set_learning_rate(min(cfg.max_learning_rate, self.lr * 1.5))
+
+    @staticmethod
+    def _muscle_action_bias(envs, n_act: int, bias: float, device) -> torch.Tensor:
+        """ [bias] for the muscles' actions (the first num_muscles), 0 (rest) for the other actuators """
+        biases = torch.zeros(n_act, device=device)
+        biases[:envs.num_muscles] = bias
+        return biases
 
     def evaluate(self) -> tuple[float, float]:
         self.actor.eval()
